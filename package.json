@@ -1,0 +1,12 @@
+{
+  "name": "mrktoxide",
+  "scripts": {
+    "db:push": "prisma db push --skip-generate",
+    "start:server": "cargo run -p server",
+    "seagen": "sea generate entity -o database/src/entities --with-serde both",
+    "release": "cargo build --release --workspace"
+  },
+  "dependencies": {
+    "prisma": "^5.12.1"
+  }
+}
