@@ -13,7 +13,7 @@ pub struct Model {
     pub image: Option<String>,
     pub banner: Option<String>,
     pub description: Option<String>,
-    #[sea_orm(column_type = "Decimal(Some((65, 30)))", nullable)]
+    #[sea_orm(column_type = "Decimal(Some((90, 2)))", nullable)]
     pub royalty: Option<Decimal>,
     pub supply: i32,
     #[sea_orm(column_type = "JsonBinary", nullable)]

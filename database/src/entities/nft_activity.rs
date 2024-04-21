@@ -12,7 +12,7 @@ pub struct Model {
     pub seller_address: Option<String>,
     pub buyer_address: Option<String>,
     pub date: DateTimeWithTimeZone,
-    #[sea_orm(column_type = "Decimal(Some((65, 30)))")]
+    #[sea_orm(column_type = "Decimal(Some((90, 2)))")]
     pub price: Decimal,
     pub denom: String,
     pub event_kind: NftActivityKind,

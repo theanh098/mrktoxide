@@ -12,7 +12,7 @@ pub struct Model {
     pub name: String,
     pub whitelist: Option<Vec<String>>,
     pub max_tokens: i32,
-    #[sea_orm(column_type = "Decimal(Some((65, 30)))")]
+    #[sea_orm(column_type = "Decimal(Some((90, 2)))")]
     pub mint_price: Decimal,
     pub creators: String,
     pub start_time: Option<DateTimeWithTimeZone>,

@@ -10,9 +10,9 @@ pub struct Model {
     pub id: i32,
     pub collection_address: String,
     pub date: DateTimeWithTimeZone,
-    #[sea_orm(column_type = "Decimal(Some((65, 30)))")]
+    #[sea_orm(column_type = "Decimal(Some((90, 2)))")]
     pub floor: Decimal,
-    #[sea_orm(column_type = "Decimal(Some((65, 30)))")]
+    #[sea_orm(column_type = "Decimal(Some((90, 2)))")]
     pub volume_of_24h: Decimal,
 }
 

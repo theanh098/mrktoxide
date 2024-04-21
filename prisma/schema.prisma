@@ -23,7 +23,7 @@ model Collection {
   name         String        @db.VarChar
   symbol       String        @db.VarChar
   supply       Int           @default(1)
-  royalty      Decimal?
+  royalty      Decimal?      @db.Decimal(90, 2)
   image        String?       @db.VarChar
   banner       String?       @db.VarChar
   description  String?       @db.VarChar
@@ -63,10 +63,10 @@ model ListingNft {
   collection_address        String       @db.VarChar
   sale_type                 SaleType
   seller_address            String       @db.VarChar
-  price                     Decimal
+  price                     Decimal      @db.Decimal(90, 2)
   start_date                DateTime?    @db.Timestamptz(3) // available when sale_type is auction
   end_date                  DateTime?    @db.Timestamptz(3) // available when sale_type is auction
-  min_bid_increment_percent Decimal? // available when sale_type is auction
+  min_bid_increment_percent Decimal?     @db.Decimal(90, 2) // available when sale_type is auction
   denom                     String       @db.VarChar
   market                    Marketplace  @default(mrkt)
   expiration_time           Int?
@@ -82,7 +82,7 @@ model NftActivity {
   seller_address String?         @db.VarChar
   buyer_address  String?         @db.VarChar
   date           DateTime        @db.Timestamptz(3)
-  price          Decimal
+  price          Decimal         @db.Decimal(90, 2)
   denom          String          @db.VarChar
   event_kind     NftActivityKind
   market         Marketplace     @default(mrkt)
@@ -110,7 +110,7 @@ model CollectionOffer {
   created_date       DateTime @db.Timestamptz(3)
   buyer_address      String   @db.VarChar
   collection_address String   @db.VarChar
-  price              Decimal
+  price              Decimal  @db.Decimal(90, 2)
   denom              String   @db.VarChar
   quantity           Int
   current_quantity   Int      @default(0)
@@ -126,7 +126,7 @@ model NftOffer {
   tx_hash       String   @db.VarChar
   created_date  DateTime @db.Timestamptz(3)
   nft_id        Int
-  price         Decimal
+  price         Decimal  @db.Decimal(90, 2)
   denom         String   @db.VarChar
   buyer_address String   @db.VarChar
   start_date    DateTime @db.Timestamptz(3)
@@ -143,7 +143,7 @@ model NftBidding {
   tx_hash       String     @db.VarChar
   created_date  DateTime   @db.Timestamptz(3)
   buyer_address String     @db.VarChar
-  price         Decimal
+  price         Decimal    @db.Decimal(90, 2)
   denom         String     @db.VarChar
   Listing       ListingNft @relation(fields: [listing_id], references: [id], onDelete: Cascade)
 
@@ -155,7 +155,7 @@ model Transaction {
   id                 Int         @id @default(autoincrement())
   txn_hash           String      @db.VarChar
   date               DateTime    @db.Timestamptz(3)
-  volume             Decimal
+  volume             Decimal     @db.Decimal(90, 2)
   collection_address String      @db.VarChar
   buyer_address      String      @db.VarChar
   seller_address     String      @db.VarChar
@@ -211,8 +211,8 @@ model CollectionSnapshot {
   id                 Int      @id @default(autoincrement())
   collection_address String   @db.VarChar
   date               DateTime @default(now()) @db.Timestamptz(3)
-  floor              Decimal
-  volume_of_24h      Decimal
+  floor              Decimal  @db.Decimal(90, 2)
+  volume_of_24h      Decimal  @db.Decimal(90, 2)
 
   @@index([date])
   @@index([collection_address, date])
@@ -278,7 +278,7 @@ model MintGroup {
   name               String              @db.VarChar
   whitelist          String[]
   max_tokens         Int
-  mint_price         Decimal
+  mint_price         Decimal             @db.Decimal(90, 2)
   creators           String              @db.VarChar
   start_time         DateTime?           @db.Timestamptz(3)
   end_time           DateTime?           @db.Timestamptz(3)
@@ -313,22 +313,22 @@ view CollectionView {
   address       String    @id
   name          String
   symbol        String
-  royalty       Decimal?
+  royalty       Decimal?  @db.Decimal(90, 2)
   image         String?
   banner        String?
   description   String?
   socials       Json?
   supply        Int
-  highest_bid   Decimal?
+  highest_bid   Decimal?  @db.Decimal(90, 2)
   listed        Int
   sales         Int
   minted_date   DateTime?
-  volume        Decimal
-  floor_price   Decimal
-  volume_of_1h  Decimal
-  volume_of_24h Decimal
-  volume_of_7d  Decimal
-  volume_of_30d Decimal
+  volume        Decimal   @db.Decimal(90, 2)
+  floor_price   Decimal   @db.Decimal(90, 2)
+  volume_of_1h  Decimal   @db.Decimal(90, 2)
+  volume_of_24h Decimal   @db.Decimal(90, 2)
+  volume_of_7d  Decimal   @db.Decimal(90, 2)
+  volume_of_30d Decimal   @db.Decimal(90, 2)
 
   @@map("collection_view")
 }

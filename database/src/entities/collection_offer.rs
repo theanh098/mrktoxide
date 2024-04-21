@@ -10,7 +10,7 @@ pub struct Model {
     pub created_date: DateTimeWithTimeZone,
     pub buyer_address: String,
     pub collection_address: String,
-    #[sea_orm(column_type = "Decimal(Some((65, 30)))")]
+    #[sea_orm(column_type = "Decimal(Some((90, 2)))")]
     pub price: Decimal,
     pub quantity: i32,
     pub start_date: DateTimeWithTimeZone,

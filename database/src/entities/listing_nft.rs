@@ -14,11 +14,11 @@ pub struct Model {
     pub collection_address: String,
     pub sale_type: SaleType,
     pub seller_address: String,
-    #[sea_orm(column_type = "Decimal(Some((65, 30)))")]
+    #[sea_orm(column_type = "Decimal(Some((90, 2)))")]
     pub price: Decimal,
     pub start_date: Option<DateTimeWithTimeZone>,
     pub end_date: Option<DateTimeWithTimeZone>,
-    #[sea_orm(column_type = "Decimal(Some((65, 30)))", nullable)]
+    #[sea_orm(column_type = "Decimal(Some((90, 2)))", nullable)]
     pub min_bid_increment_percent: Option<Decimal>,
     pub denom: String,
     #[sea_orm(primary_key)]

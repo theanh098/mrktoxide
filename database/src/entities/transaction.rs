@@ -9,7 +9,7 @@ use serde::{Deserialize, Serialize};
 pub struct Model {
     pub txn_hash: String,
     pub date: DateTimeWithTimeZone,
-    #[sea_orm(column_type = "Decimal(Some((65, 30)))")]
+    #[sea_orm(column_type = "Decimal(Some((90, 2)))")]
     pub volume: Decimal,
     pub collection_address: String,
     pub buyer_address: String,

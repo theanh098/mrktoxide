@@ -9,7 +9,7 @@ pub struct Model {
     pub tx_hash: String,
     pub created_date: DateTimeWithTimeZone,
     pub nft_id: i32,
-    #[sea_orm(column_type = "Decimal(Some((65, 30)))")]
+    #[sea_orm(column_type = "Decimal(Some((90, 2)))")]
     pub price: Decimal,
     pub buyer_address: String,
     pub start_date: DateTimeWithTimeZone,

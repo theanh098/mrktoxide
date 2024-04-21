@@ -3,6 +3,7 @@
   "scripts": {
     "db:push": "prisma db push --skip-generate",
     "start:server": "cargo run -p server",
+    "cw721:stream": "cargo run -p cli --bin cw721-stream",
     "seagen": "sea generate entity -o database/src/entities --with-serde both",
     "release": "cargo build --release --workspace"
   },

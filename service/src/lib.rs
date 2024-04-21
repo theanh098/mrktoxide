@@ -1,4 +1,8 @@
-mod get_nft_metadata;
+mod cosmos;
+mod http;
+
+static PALLET_API_URL: &'static str = "https://api.prod.pallet.exchange/api";
 
 pub type ServiceError = reqwest::Error;
-pub use get_nft_metadata::*;
+pub use cosmos::*;
+pub use http::*;
