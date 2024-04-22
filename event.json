@@ -1,0 +1,168 @@
+{
+  "jsonrpc": "2.0",
+  "id": "0",
+  "result": {
+    "subscription_id": "",
+    "query": "tm.event = 'Tx' AND wasm._contract_address EXISTS AND wasm.token_id EXISTS AND wasm.action EXISTS",
+    "data": {
+      "type": "tendermint/event/Tx",
+      "value": {
+        "TxResult": {
+          "height": "71490172",
+          "index": 32,
+          "tx": "CvcBCvQBCiQvY29zbXdhc20ud2FzbS52MS5Nc2dFeGVjdXRlQ29udHJhY3QSywEKKnNlaTF6amdsZmw5NTh1aHJqa3ZlenBqbm5sdmsydnN5dTV1OTNtODY5NRI+c2VpMWhjcThwaHprYXJuNm5yN3drM3k1cXdoN2p5ZnpmY2toOXhkd2owcmNwZWFncmR6N3JyZ3N4czhqenYaXXsidHJhbnNmZXJfbmZ0Ijp7InJlY2lwaWVudCI6InNlaTFobnRmeXdncXFqOTV2OXVyM2RzaHp5ZDlkaGU1d3Fmd204eGNuNiIsInRva2VuX2lkIjoiMTM1OCJ9fRJkCk4KRgofL2Nvc21vcy5jcnlwdG8uc2VjcDI1NmsxLlB1YktleRIjCiECVkbesant4pcifMz48nOPb9wv3d98EdWneIUawGtCN8wSBAoCCAESEgoMCgR1c2VpEgQ0OTEyEMD+DhpAMB9kpRLjvUqDuUmDLgif4FpcDolE406Y4EK/TQpqygIm/Xsielxgjo8lDdVfIXggkeBFOzKTtBE2Hy2zJN3Sdg==",
+          "result": {
+            "log": "[{\"events\":[{\"type\":\"execute\",\"attributes\":[{\"key\":\"_contract_address\",\"value\":\"sei1hcq8phzkarn6nr7wk3y5qwh7jyfzfckh9xdwj0rcpeagrdz7rrgsxs8jzv\"}]},{\"type\":\"message\",\"attributes\":[{\"key\":\"action\",\"value\":\"/cosmwasm.wasm.v1.MsgExecuteContract\"},{\"key\":\"module\",\"value\":\"wasm\"},{\"key\":\"sender\",\"value\":\"sei1zjglfl958uhrjkvezpjnnlvk2vsyu5u93m8695\"}]},{\"type\":\"wasm\",\"attributes\":[{\"key\":\"_contract_address\",\"value\":\"sei1hcq8phzkarn6nr7wk3y5qwh7jyfzfckh9xdwj0rcpeagrdz7rrgsxs8jzv\"},{\"key\":\"action\",\"value\":\"transfer_nft\"},{\"key\":\"sender\",\"value\":\"sei1zjglfl958uhrjkvezpjnnlvk2vsyu5u93m8695\"},{\"key\":\"recipient\",\"value\":\"sei1hntfywgqqj95v9ur3dshzyd9dhe5wqfwm8xcn6\"},{\"key\":\"token_id\",\"value\":\"1358\"}]}]}]",
+            "gas_wanted": "245568",
+            "gas_used": "174915",
+            "events": [
+              {
+                "type": "coin_spent",
+                "attributes": [
+                  {
+                    "key": "c3BlbmRlcg==",
+                    "value": "c2VpMXpqZ2xmbDk1OHVocmprdmV6cGpubmx2azJ2c3l1NXU5M204Njk1",
+                    "index": true
+                  },
+                  {
+                    "key": "YW1vdW50",
+                    "value": "NDkxMnVzZWk=",
+                    "index": true
+                  }
+                ]
+              },
+              {
+                "type": "tx",
+                "attributes": [
+                  {
+                    "key": "ZmVl",
+                    "value": "NDkxMnVzZWk=",
+                    "index": true
+                  },
+                  {
+                    "key": "ZmVlX3BheWVy",
+                    "value": "c2VpMXpqZ2xmbDk1OHVocmprdmV6cGpubmx2azJ2c3l1NXU5M204Njk1",
+                    "index": true
+                  }
+                ]
+              },
+              {
+                "type": "tx",
+                "attributes": [
+                  {
+                    "key": "YWNjX3NlcQ==",
+                    "value": "c2VpMXpqZ2xmbDk1OHVocmprdmV6cGpubmx2azJ2c3l1NXU5M204Njk1LzA=",
+                    "index": true
+                  }
+                ]
+              },
+              {
+                "type": "tx",
+                "attributes": [
+                  {
+                    "key": "c2lnbmF0dXJl",
+                    "value": "TUI5a3BSTGp2VXFEdVVtRExnaWY0RnBjRG9sRTQwNlk0RUsvVFFwcXlnSW0vWHNpZWx4Z2pvOGxEZFZmSVhnZ2tlQkZPektUdEJFMkh5MnpKTjNTZGc9PQ==",
+                    "index": true
+                  }
+                ]
+              },
+              {
+                "type": "message",
+                "attributes": [
+                  {
+                    "key": "YWN0aW9u",
+                    "value": "L2Nvc213YXNtLndhc20udjEuTXNnRXhlY3V0ZUNvbnRyYWN0",
+                    "index": true
+                  }
+                ]
+              },
+              {
+                "type": "message",
+                "attributes": [
+                  {
+                    "key": "bW9kdWxl",
+                    "value": "d2FzbQ==",
+                    "index": true
+                  },
+                  {
+                    "key": "c2VuZGVy",
+                    "value": "c2VpMXpqZ2xmbDk1OHVocmprdmV6cGpubmx2azJ2c3l1NXU5M204Njk1",
+                    "index": true
+                  }
+                ]
+              },
+              {
+                "type": "execute",
+                "attributes": [
+                  {
+                    "key": "X2NvbnRyYWN0X2FkZHJlc3M=",
+                    "value": "c2VpMWhjcThwaHprYXJuNm5yN3drM3k1cXdoN2p5ZnpmY2toOXhkd2owcmNwZWFncmR6N3JyZ3N4czhqenY=",
+                    "index": true
+                  }
+                ]
+              },
+              {
+                "type": "wasm",
+                "attributes": [
+                  {
+                    "key": "X2NvbnRyYWN0X2FkZHJlc3M=",
+                    "value": "c2VpMWhjcThwaHprYXJuNm5yN3drM3k1cXdoN2p5ZnpmY2toOXhkd2owcmNwZWFncmR6N3JyZ3N4czhqenY=",
+                    "index": true
+                  },
+                  {
+                    "key": "YWN0aW9u",
+                    "value": "dHJhbnNmZXJfbmZ0",
+                    "index": true
+                  },
+                  {
+                    "key": "c2VuZGVy",
+                    "value": "c2VpMXpqZ2xmbDk1OHVocmprdmV6cGpubmx2azJ2c3l1NXU5M204Njk1",
+                    "index": true
+                  },
+                  {
+                    "key": "cmVjaXBpZW50",
+                    "value": "c2VpMWhudGZ5d2dxcWo5NXY5dXIzZHNoenlkOWRoZTV3cWZ3bTh4Y242",
+                    "index": true
+                  },
+                  {
+                    "key": "dG9rZW5faWQ=",
+                    "value": "MTM1OA==",
+                    "index": true
+                  }
+                ]
+              }
+            ]
+          }
+        }
+      }
+    },
+    "events": {
+      "coin_spent.amount": ["4912usei"],
+      "coin_spent.spender": ["sei1zjglfl958uhrjkvezpjnnlvk2vsyu5u93m8695"],
+      "execute._contract_address": [
+        "sei1hcq8phzkarn6nr7wk3y5qwh7jyfzfckh9xdwj0rcpeagrdz7rrgsxs8jzv"
+      ],
+      "message.action": ["/cosmwasm.wasm.v1.MsgExecuteContract"],
+      "message.module": ["wasm"],
+      "message.sender": ["sei1zjglfl958uhrjkvezpjnnlvk2vsyu5u93m8695"],
+      "tm.event": ["Tx"],
+      "tx.acc_seq": ["sei1zjglfl958uhrjkvezpjnnlvk2vsyu5u93m8695/0"],
+      "tx.fee": ["4912usei"],
+      "tx.fee_payer": ["sei1zjglfl958uhrjkvezpjnnlvk2vsyu5u93m8695"],
+      "tx.hash": [
+        "9C6730D42D92169CC8789D395CC7E8F6C8E0B2C9A09EA8985E6CA4B632B19D76"
+      ],
+      "tx.height": ["71490172"],
+      "tx.signature": [
+        "MB9kpRLjvUqDuUmDLgif4FpcDolE406Y4EK/TQpqygIm/Xsielxgjo8lDdVfIXggkeBFOzKTtBE2Hy2zJN3Sdg=="
+      ],
+      "wasm._contract_address": [
+        "sei1hcq8phzkarn6nr7wk3y5qwh7jyfzfckh9xdwj0rcpeagrdz7rrgsxs8jzv"
+      ],
+      "wasm.action": ["transfer_nft"],
+      "wasm.recipient": ["sei1hntfywgqqj95v9ur3dshzyd9dhe5wqfwm8xcn6"],
+      "wasm.sender": ["sei1zjglfl958uhrjkvezpjnnlvk2vsyu5u93m8695"],
+      "wasm.token_id": ["1358"]
+    }
+  }
+}

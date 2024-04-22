@@ -1,46 +1,39 @@
+use crate::{find_attribute, shared::create_nft_or_update_owner, Attribute, Event, Transaction};
 use anyhow::Ok;
-use base64::{prelude::BASE64_STANDARD, Engine};
 use database::DatabaseConnection;
 use service::CosmosClient;
-use tendermint_rpc::{dialect::v0_37::Event, event::TxInfo};
-
-use crate::{find_attribute, shared::create_nft_or_update_owner, to_wasm_payload, WasmPayload};
 
 static MINT_ACTION: &'static str = "mint";
 static TRANSFER_ACTION: &'static str = "transfer_nft";
 static SEND_ACTION: &'static str = "send_nft";
 
-fn is_cw721_action(action: &str) -> bool {
-    action == &BASE64_STANDARD.encode(MINT_ACTION)
-        || action == &BASE64_STANDARD.encode(TRANSFER_ACTION)
-        || action == &BASE64_STANDARD.encode(SEND_ACTION)
+fn is_cw721_action_attribute(attribue: &Attribute) -> bool {
+    let Attribute { key, value } = attribue;
+
+    if key != "action" {
+        false
+    } else {
+        value == MINT_ACTION || value == TRANSFER_ACTION || value == SEND_ACTION
+    }
 }
 
 fn is_cw721_event(event: &Event) -> bool {
-    event.kind == "wasm"
+    event.r#type == "wasm"
         && event
             .attributes
             .iter()
-            .find(|attribute| {
-                let is_action_key = BASE64_STANDARD.encode("action") == attribute.key;
-
-                if !is_action_key {
-                    false
-                } else {
-                    is_cw721_action(&attribute.value)
-                }
-            })
+            .find(|attribute| is_cw721_action_attribute(attribute))
             .is_some()
 }
 
 async fn hanlde_transfer(
     db: &DatabaseConnection,
     client: &CosmosClient,
-    payload: &[WasmPayload],
+    event: &Event,
 ) -> anyhow::Result<()> {
-    let token_address = find_attribute(payload, "_contract_address")?;
-    let token_id = find_attribute(payload, "token_id")?;
-    let recipient = find_attribute(payload, "recipient")?;
+    let token_address = find_attribute(event, "_contract_address")?;
+    let token_id = find_attribute(event, "token_id")?;
+    let recipient = find_attribute(event, "recipient")?;
 
     create_nft_or_update_owner(db, client, token_address, token_id, Some(recipient)).await?;
     println!("done handle transfer");
@@ -50,11 +43,11 @@ async fn hanlde_transfer(
 async fn hanlde_send(
     db: &DatabaseConnection,
     client: &CosmosClient,
-    payload: &[WasmPayload],
+    event: &Event,
 ) -> anyhow::Result<()> {
-    let token_address = find_attribute(payload, "_contract_address")?;
-    let token_id = find_attribute(payload, "token_id")?;
-    let recipient = find_attribute(payload, "recipient")?;
+    let token_address = find_attribute(event, "_contract_address")?;
+    let token_id = find_attribute(event, "token_id")?;
+    let recipient = find_attribute(event, "recipient")?;
 
     create_nft_or_update_owner(db, client, token_address, token_id, Some(recipient)).await?;
     println!("done handle send");
@@ -64,11 +57,11 @@ async fn hanlde_send(
 async fn hanlde_mint(
     db: &DatabaseConnection,
     client: &CosmosClient,
-    payload: &[WasmPayload],
+    event: &Event,
 ) -> anyhow::Result<()> {
-    let token_address = find_attribute(payload, "_contract_address")?;
-    let token_id = find_attribute(payload, "token_id")?;
-    let owner = find_attribute(payload, "owner")?;
+    let token_address = find_attribute(event, "_contract_address")?;
+    let token_id = find_attribute(event, "token_id")?;
+    let owner = find_attribute(event, "owner")?;
 
     create_nft_or_update_owner(db, client, token_address, token_id, Some(owner)).await?;
     println!("done handle mint");
@@ -79,31 +72,30 @@ async fn hanlde_mint(
 pub async fn tx_handler(
     db: &DatabaseConnection,
     client: &CosmosClient,
-    tx: TxInfo,
+    tx: Transaction,
 ) -> anyhow::Result<()> {
-    let payloads: Vec<Vec<WasmPayload>> = tx
-        .result
+    let events = tx
         .events
         .into_iter()
         .filter(is_cw721_event)
-        .map(to_wasm_payload)
-        .collect();
+        .collect::<Vec<Event>>();
 
-    for payload in payloads {
-        let action = payload
+    for event in events {
+        let action = event
+            .attributes
             .iter()
-            .find(|WasmPayload(key, _)| key == "action")
-            .map(|WasmPayload(_, value)| value.to_string())
+            .find(|Attribute { key, .. }| key == "action")
+            .map(|attribute| attribute.value.to_owned())
             .unwrap_or_default();
 
         if action == MINT_ACTION {
-            hanlde_mint(db, client, &payload).await?;
+            hanlde_mint(db, client, &event).await?;
         } else if action == TRANSFER_ACTION {
-            hanlde_transfer(db, client, &payload).await?;
+            hanlde_transfer(db, client, &event).await?;
         } else if action == SEND_ACTION {
-            hanlde_send(db, client, &payload).await?;
+            hanlde_send(db, client, &event).await?;
         } else {
-            println!("unexpected action {} payload {:#?}", action, payload);
+            println!("unexpected action {} event {:#?}", action, event);
         }
     }
 
