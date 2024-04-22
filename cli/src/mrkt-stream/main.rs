@@ -19,9 +19,6 @@ async fn main() {
     let db = Database::connect(opt).await.unwrap();
 
     let query = Query::from(EventType::Tx)
-        .and_exists("wasm.action")
-        .and_exists("wasm._contract_address")
-        .and_exists("wasm.token_id")
         .and_eq("wasm._contract_address", MRKT_CONTRACT_ADDRESS)
         .to_string();
 

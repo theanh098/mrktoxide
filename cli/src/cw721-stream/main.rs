@@ -21,6 +21,8 @@ async fn main() {
         .and_exists("wasm.token_id")
         .to_string();
 
+    dbg!(&query);
+
     let msg = serde_json::json!({
         "jsonrpc": "2.0",
         "method": "subscribe",

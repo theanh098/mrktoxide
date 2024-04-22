@@ -19,10 +19,7 @@ async fn main() {
     let db = Database::connect(opt).await.unwrap();
 
     let query = Query::from(EventType::Tx)
-        .and_exists("wasm.action")
-        .and_exists("wasm._contract_address")
-        .and_exists("wasm.token_id")
-        .and_eq("wasm._contract_address", PALLET_CONTRACT_ADDRESS)
+        .and_eq("execute._contract_address", PALLET_CONTRACT_ADDRESS)
         .to_string();
 
     let msg = serde_json::json!({

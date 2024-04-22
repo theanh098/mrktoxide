@@ -2,7 +2,7 @@ use database::{
     prelude::Decimal,
     repositories::{
         collection::{self as CollectionRespository, CreateCollectionParams},
-        nft::{self as NftRepository, Attribute, CreateNftParams},
+        nft::{self as NftRepository, AttributeParams, CreateNftParams},
     },
     DatabaseConnection,
 };
@@ -86,7 +86,7 @@ pub async fn create_nft_or_update_owner(
             traits: metadata.attributes.map(|attributes| {
                 attributes
                     .into_iter()
-                    .map(|attribute| Attribute {
+                    .map(|attribute| AttributeParams {
                         display_type: attribute.display_type.map(|v| v.to_string()),
                         trait_type: attribute.trait_type,
                         r#type: attribute.r#type,

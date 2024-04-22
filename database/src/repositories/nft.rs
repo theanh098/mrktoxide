@@ -1,3 +1,4 @@
+use sea_orm::prelude::{DateTimeWithTimeZone, Decimal};
 use sea_orm::{
     sea_query::OnConflict, ColumnTrait, DatabaseConnection, DbErr, EntityTrait, QueryFilter, Set,
     TransactionTrait,
@@ -64,7 +65,7 @@ pub async fn create(db: &DatabaseConnection, params: CreateNftParams) -> Result<
         .last_insert_id;
 
     let traits = params.traits.unwrap_or_default().into_iter().map(
-        |Attribute {
+        |AttributeParams {
              trait_type,
              r#type,
              value,
@@ -88,20 +89,39 @@ pub async fn create(db: &DatabaseConnection, params: CreateNftParams) -> Result<
     Ok(nft_id)
 }
 
+pub async fn create_listing(db: &DatabaseConnection) {}
+
 pub struct CreateNftParams {
     pub token_address: String,
     pub token_id: String,
     pub token_uri: String,
     pub name: Option<String>,
     pub image: Option<String>,
-    pub traits: Option<Vec<Attribute>>,
+    pub traits: Option<Vec<AttributeParams>>,
     pub description: Option<String>,
     pub owner_address: Option<String>,
 }
 
-pub struct Attribute {
+pub struct AttributeParams {
     pub trait_type: Option<String>,
     pub r#type: Option<String>,
     pub value: Option<String>,
     pub display_type: Option<String>,
 }
+
+pub struct CreatePalletListingParams {
+    pub nft_id: i32,
+    pub tx_hash: String,
+    pub denom: String,
+    pub amount: Decimal,
+    pub pallet_listing: PalletListing,
+}
+
+pub struct PalletListing {
+    nft_address: String,
+    nft_token_id: String,
+    owner: String,
+    auction: Option<PalletAuction>,
+}
+
+pub struct PalletAuction {}
