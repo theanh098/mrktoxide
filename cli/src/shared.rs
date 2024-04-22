@@ -30,10 +30,7 @@ pub async fn create_collection_if_not_exist(
             address,
             symbol: info.symbol,
             name: info.name,
-            banner: metadata.banner,
-            description: metadata.description,
-            image: metadata.pfp,
-            socials: metadata.socials,
+            metadata,
             supply: supply.count as i32,
             royalty: royalty
                 .map(Decimal::from_f32_retain)

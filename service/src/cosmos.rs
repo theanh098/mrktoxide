@@ -3,34 +3,9 @@ use serde::{de::DeserializeOwned, Deserialize, Serialize};
 use serde_json::json;
 use tendermint_rpc::{Client, HttpClient};
 
+use crate::PALLET_CONTRACT_ADDRESS;
+
 pub struct CosmosClient(HttpClient);
-
-#[derive(Deserialize, Debug)]
-pub struct ContractInfo {
-    pub name: String,
-    pub symbol: String,
-}
-
-#[derive(Deserialize, Debug)]
-pub struct Supply {
-    pub count: u32,
-}
-
-#[derive(Deserialize, Debug)]
-pub struct NftInfo {
-    pub token_uri: String,
-    pub extension: Option<Extension>,
-}
-
-#[derive(Deserialize, Debug)]
-pub struct Extension {
-    pub royalty_percentage: Option<f32>,
-}
-
-#[derive(Deserialize, Debug)]
-pub struct NftOwner {
-    pub owner: String,
-}
 
 #[derive(thiserror::Error, Debug)]
 pub enum CosmosClientError {
@@ -106,6 +81,45 @@ impl CosmosClient {
         self.query_contract(address, msg).await
     }
 
+    pub async fn get_pallet_listing(
+        &self,
+        token_address: String,
+        token_id: String,
+    ) -> Result<PalletListing, CosmosClientError> {
+        let msg = json!({
+            "nft": {
+                "address": token_address,
+                "token_id": token_id
+            }
+        });
+
+        self.query_contract(PALLET_CONTRACT_ADDRESS, msg).await
+    }
+
+    pub async fn get_tx(&self, tx_hash: &str) -> Result<TxResponse, CosmosClientError> {
+        let query = GetTxRequest {
+            hash: tx_hash.to_string(),
+        };
+
+        let res = self
+            .inner()
+            .abci_query(
+                Some("/cosmos.tx.v1beta1.Service/GetTx".to_string()),
+                query.encode_to_vec(),
+                None,
+                false,
+            )
+            .await?;
+
+        if res.code.is_err() {
+            return Err(CosmosClientError::RpcError(res.log));
+        }
+
+        let res = TxResponse::decode(res.value.as_slice())?;
+
+        Ok(res)
+    }
+
     async fn query_contract<T, U>(&self, address: &str, msg: T) -> Result<U, CosmosClientError>
     where
         T: Serialize,
@@ -138,7 +152,90 @@ impl CosmosClient {
     }
 }
 
-#[derive(Clone, PartialEq, prost::Message)]
+#[derive(Deserialize, Debug)]
+pub struct ContractInfo {
+    pub name: String,
+    pub symbol: String,
+}
+
+#[derive(Deserialize, Debug)]
+pub struct Supply {
+    pub count: u32,
+}
+
+#[derive(Deserialize, Debug)]
+pub struct NftInfo {
+    pub token_uri: String,
+    pub extension: Option<Extension>,
+}
+
+#[derive(Deserialize, Debug)]
+pub struct Extension {
+    pub royalty_percentage: Option<f32>,
+}
+
+#[derive(Deserialize, Debug)]
+pub struct NftOwner {
+    pub owner: String,
+}
+
+#[derive(Deserialize, Debug)]
+
+pub struct PalletListing {
+    pub nft_address: String,
+    pub token_id: String,
+    pub owner: String,
+    pub auction: Option<PalletAuction>,
+}
+
+#[derive(Deserialize, Debug)]
+
+pub struct PalletAuction {
+    pub created_at: u32,
+    pub expiration_time: u32,
+    pub prices: [Price; 1],
+}
+
+#[derive(Deserialize, Debug)]
+
+pub struct Price {
+    pub amount: String,
+    pub denom: String,
+}
+
+#[derive(prost::Message)]
+pub struct TxResponse {
+    #[prost(int64, tag = "1")]
+    pub height: i64,
+
+    #[prost(string, tag = "2")]
+    pub txhash: prost::alloc::string::String,
+
+    #[prost(string, tag = "3")]
+    pub timestamp: prost::alloc::string::String,
+
+    #[prost(message, repeated, tag = "4")]
+    pub events: prost::alloc::vec::Vec<Event>,
+}
+#[derive(prost::Message)]
+pub struct Event {
+    #[prost(string, tag = "1")]
+    pub r#type: prost::alloc::string::String,
+
+    #[prost(message, repeated, tag = "2")]
+    pub attributes: prost::alloc::vec::Vec<EventAttribute>,
+}
+
+#[derive(prost::Message)]
+pub struct EventAttribute {
+    #[prost(bytes = "bytes", tag = "1")]
+    pub key: ::prost::bytes::Bytes,
+
+    #[prost(bytes = "bytes", tag = "2")]
+    pub value: ::prost::bytes::Bytes,
+}
+
+#[derive(prost::Message)]
 struct QueryContractRequest {
     #[prost(string, tag = "1")]
     address: prost::alloc::string::String,
@@ -147,8 +244,14 @@ struct QueryContractRequest {
     query_data: prost::alloc::vec::Vec<u8>,
 }
 
-#[derive(Clone, PartialEq, prost::Message)]
+#[derive(prost::Message)]
 struct QueryRawContractResponse {
     #[prost(bytes = "vec", tag = "1")]
     pub data: prost::alloc::vec::Vec<u8>,
+}
+
+#[derive(prost::Message)]
+struct GetTxRequest {
+    #[prost(string, tag = "1")]
+    hash: String,
 }

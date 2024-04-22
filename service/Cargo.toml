@@ -9,7 +9,6 @@ edition = "2021"
 reqwest = { version = "*", features = ["json"] }
 serde = { version = "*", features = ["derive"] }
 serde_json = "*"
-cosmos-client = { version = "*" }
 prost = "*"
 tendermint-rpc = { version = "*", features = ["http-client"] }
 thiserror = "*"

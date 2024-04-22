@@ -1,3 +1,5 @@
+#![allow(unused_imports)]
+#![allow(dead_code)]
 mod error;
 mod extractors;
 mod handlers;

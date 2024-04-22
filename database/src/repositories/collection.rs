@@ -1,6 +1,7 @@
 use sea_orm::{
     prelude::Decimal, sea_query::OnConflict, DatabaseConnection, DbErr, EntityTrait, Set,
 };
+use service::CollectionMetadata;
 
 use crate::entities::collection;
 use crate::Collection;
@@ -18,11 +19,11 @@ pub async fn create(db: &DatabaseConnection, params: CreateCollectionParams) -> 
         name: Set(params.name),
         symbol: Set(params.symbol),
         supply: Set(params.supply),
-        description: Set(params.description),
+        description: Set(params.metadata.description),
         royalty: Set(params.royalty),
-        banner: Set(params.banner),
-        image: Set(params.image),
-        socials: Set(if let Some(socials) = params.socials {
+        banner: Set(params.metadata.banner),
+        image: Set(params.metadata.pfp),
+        socials: Set(if let Some(socials) = params.metadata.socials {
             Some(socials)
         } else {
             None
@@ -47,9 +48,6 @@ pub struct CreateCollectionParams {
     pub name: String,
     pub symbol: String,
     pub supply: i32,
-    pub description: Option<String>,
+    pub metadata: CollectionMetadata,
     pub royalty: Option<Decimal>,
-    pub image: Option<String>,
-    pub banner: Option<String>,
-    pub socials: Option<serde_json::Value>,
 }

@@ -1,3 +1,5 @@
+#![allow(unused_imports)]
+#![allow(dead_code)]
 pub mod cw721;
 pub mod mrkt;
 pub mod pallet;
@@ -16,13 +18,6 @@ pub static RPC_URL: &'static str = "https://rpc.sei-apis.com";
 static WSS_URL: &'static str = "wss://rpc.sei-apis.com/websocket";
 static INGORE_MESSAGE: &'static str = "{\"jsonrpc\":\"2.0\",\"id\":\"0\",\"result\":{}}";
 
-#[derive(Debug)]
-pub enum StreamContext {
-    Mrkt,
-    Pallet,
-    Cw721,
-}
-
 pub trait FromJsonValue
 where
     Self: Sized,
@@ -36,13 +31,13 @@ pub struct Transaction {
     pub events: Vec<Event>,
 }
 
-#[derive(serde::Deserialize, Debug)]
+#[derive(serde::Deserialize, serde::Serialize, Debug)]
 pub struct Event {
     pub r#type: String,
     pub attributes: Vec<Attribute>,
 }
 
-#[derive(serde::Deserialize, Debug)]
+#[derive(serde::Deserialize, serde::Serialize, Debug)]
 pub struct Attribute {
     pub key: String,
     pub value: String,
@@ -51,49 +46,32 @@ pub struct Attribute {
 pub async fn stream_handler<'r, F, Fut>(
     db: &'r DatabaseConnection,
     cosmos_client: &'r CosmosClient,
-    ctx: StreamContext,
-    msg_subcribe: Message,
+    msg_subcribe: &Message,
     tx_handler: F,
-) where
+) -> anyhow::Result<()>
+where
     F: Fn(&'r DatabaseConnection, &'r CosmosClient, Transaction) -> Fut,
-    Fut: Future<Output = anyhow::Result<()>> + 'r,
+    Fut: Future<Output = ()> + 'r,
 {
-    let (ws_stream, _) = connect_async(WSS_URL).await.expect("failed to connect ws");
+    let (ws_stream, _) = connect_async(WSS_URL).await?;
 
     let (mut write, mut read) = ws_stream.split();
 
-    write.send(msg_subcribe).await.expect("failed to send msg");
+    write.send(msg_subcribe.to_owned()).await?;
 
     while let Some(message) = read.next().await {
-        match message {
-            Err(err) => {
-                eprintln!("unxepected error when read ws message {}", err);
-            }
-            Ok(message) => {
-                if let Message::Text(message) = message {
-                    if message != INGORE_MESSAGE {
-                        let tx_result = serde_json::from_str::<Value>(&message)
-                            .map_err(|e| anyhow!("unxepected error can not parse raw msg, {}", e))
-                            .and_then(<Transaction as FromJsonValue>::try_from_value);
+        if let Message::Text(message) = message? {
+            if message != INGORE_MESSAGE {
+                let tx_result = serde_json::from_str::<Value>(&message)
+                    .map_err(|e| anyhow!("unxepected error can not parse raw msg, {}", e))
+                    .and_then(<Transaction as FromJsonValue>::try_from_value)?;
 
-                        match tx_result {
-                            Err(e) => eprintln!("{}", e),
-                            Ok(tx_result) => {
-                                tx_handler(db, cosmos_client, tx_result)
-                                    .await
-                                    .unwrap_or_else(|error| {
-                                        eprintln!(
-                                            "{:#?}>> Unxpected error when hanlde tx event: {:#?}",
-                                            ctx, error
-                                        );
-                                    });
-                            }
-                        }
-                    }
-                }
+                tx_handler(db, cosmos_client, tx_result).await
             }
         }
     }
+
+    Ok(())
 }
 
 pub fn find_attribute(payload: &Event, key: &str) -> anyhow::Result<String> {

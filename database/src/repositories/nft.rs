@@ -89,7 +89,7 @@ pub async fn create(db: &DatabaseConnection, params: CreateNftParams) -> Result<
     Ok(nft_id)
 }
 
-pub async fn create_listing(db: &DatabaseConnection) {}
+// pub async fn create_listing(db: &DatabaseConnection) {}
 
 pub struct CreateNftParams {
     pub token_address: String,

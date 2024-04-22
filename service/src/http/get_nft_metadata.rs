@@ -6,11 +6,11 @@ pub struct NftMetadata {
     pub name: Option<String>,
     pub description: Option<String>,
     pub image: Option<String>,
-    pub attributes: Option<Vec<Attribute>>,
+    pub attributes: Option<Vec<NftAttribute>>,
 }
 
 #[derive(Debug, Clone, Deserialize)]
-pub struct Attribute {
+pub struct NftAttribute {
     pub trait_type: Option<String>,
     pub r#type: Option<String>,
     pub value: Option<Value>,

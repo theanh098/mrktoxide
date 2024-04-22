@@ -7,6 +7,7 @@ edition = "2021"
 
 [dependencies]
 serde = { version = "*", features = ["derive"] }
+service = { path = "../service" }
 serde_json = "*"
 chrono = "*"
 

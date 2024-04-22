@@ -1,4 +1,4 @@
-use cli::{cw721::tx_handler, stream_handler, StreamContext, RPC_URL};
+use cli::{cw721::tx_handler, stream_handler, RPC_URL};
 use database::{ConnectOptions, Database};
 use service::CosmosClient;
 use tendermint_rpc::query::{EventType, Query};
@@ -34,5 +34,9 @@ async fn main() {
 
     let msg = Message::text(msg.to_string());
 
-    stream_handler(&db, &cosmos_client, StreamContext::Cw721, msg, tx_handler).await;
+    loop {
+        if let Err(error) = stream_handler(&db, &cosmos_client, &msg, tx_handler).await {
+            eprintln!("{}", error)
+        }
+    }
 }
