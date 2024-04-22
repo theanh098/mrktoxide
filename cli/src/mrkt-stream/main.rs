@@ -3,7 +3,7 @@ use tokio_tungstenite::{connect_async, tungstenite::Message};
 
 #[tokio::main]
 async fn main() {
-    let (ws_stream, _) = connect_async("wss://rpc.sei-apis.com/websocket?x-apikey=06cf555f")
+    let (ws_stream, _) = connect_async("wss://rpc.sei-apis.com/websocket?x-apikey=")
         .await
         .expect("fail to connect");
 
