@@ -7,13 +7,15 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-futures-util = "0.3.30"
-tokio = { version = "1.37.0", features = ["full"] }
-tendermint-rpc = { version = "0.35.0", features = ["websocket-client", "http-client"] }
-base64 = "0.22.0"
-anyhow = "1.0.82"
-chrono = "0.4.38"
-dotenv = "0.15.0"
+futures-util = "*"
+tokio = { version = "*", features = ["full"] }
+tendermint-rpc = { version = "*", features = ["websocket-client", "http-client"] }
+base64 = "*"
+anyhow = "*"
+chrono = "*"
+dotenv = "*"
+tokio-tungstenite = { version = "*", features = ["native-tls"] }
+serde_json = "1.0.116"
 database = { path = "../database" }
 service = { path = "../service" }
 

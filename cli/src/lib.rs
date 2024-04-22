@@ -15,7 +15,7 @@ use tendermint_rpc::{
     SubscriptionClient, WebSocketClient,
 };
 
-static WSS_URL: &'static str = "wss://rpc.sei-apis.com/websocket?x-apikey=";
+static WSS_URL: &'static str = "https://rpc.sei-apis.com/websocket?x-apikey=";
 
 pub async fn listen_stream<'r, F, Fut>(
     ctx: StreamContext,
