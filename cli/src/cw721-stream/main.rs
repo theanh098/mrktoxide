@@ -1,4 +1,4 @@
-use cli::{cw721::tx_handler, stream_handler, RPC_URL};
+use cli::{create_subcribe_message, cw721::tx_handler, stream_handler, RPC_URL};
 use database::{ConnectOptions, Database};
 use service::CosmosClient;
 use tendermint_rpc::query::{EventType, Query};
@@ -18,21 +18,11 @@ async fn main() {
     let query = Query::from(EventType::Tx)
         .and_exists("wasm.action")
         .and_exists("wasm._contract_address")
-        .and_exists("wasm.token_id")
-        .to_string();
+        .and_exists("wasm.token_id");
 
-    dbg!(&query);
+    dbg!(&query.to_string());
 
-    let msg = serde_json::json!({
-        "jsonrpc": "2.0",
-        "method": "subscribe",
-        "id": "0",
-        "params": {
-          "query": query
-        }
-    });
-
-    let msg = Message::text(msg.to_string());
+    let msg = create_subcribe_message(query);
 
     loop {
         if let Err(error) = stream_handler(&db, &cosmos_client, &msg, tx_handler).await {

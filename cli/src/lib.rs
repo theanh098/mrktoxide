@@ -12,6 +12,7 @@ use futures_util::{SinkExt, StreamExt};
 use serde_json::Value;
 use service::CosmosClient;
 use std::future::Future;
+use tendermint_rpc::query::Query;
 use tokio_tungstenite::{connect_async, tungstenite::Message};
 
 pub static RPC_URL: &'static str = "https://rpc.sei-apis.com";
@@ -129,6 +130,21 @@ impl FromJsonValue for Transaction {
             events,
         })
     }
+}
+
+pub fn create_subcribe_message(query: Query) -> Message {
+    let msg = serde_json::json!({
+        "jsonrpc": "2.0",
+        "method": "subscribe",
+        "id": "0",
+        "params": {
+          "query": query.to_string()
+        }
+    });
+
+    let msg = Message::text(msg.to_string());
+
+    msg
 }
 
 fn to_utf8(base64: String) -> String {
