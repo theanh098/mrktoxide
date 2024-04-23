@@ -6,7 +6,7 @@ use sea_orm::{DatabaseConnection, DatabaseTransaction, DbErr, EntityTrait, Set};
 pub async fn create(
     db: &DatabaseTransaction,
     params: CreateTransactionParams,
-) -> Result<(), DbErr> {
+) -> Result<&DatabaseTransaction, DbErr> {
     let transaction = transaction::ActiveModel {
         buyer_address: Set(params.buyer_address),
         collection_address: Set(params.collection_address),
@@ -20,7 +20,7 @@ pub async fn create(
 
     Transaction::insert(transaction).exec(db).await?;
 
-    Ok(())
+    Ok(db)
 }
 
 pub struct CreateTransactionParams {

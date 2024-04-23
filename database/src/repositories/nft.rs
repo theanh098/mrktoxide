@@ -2,6 +2,7 @@ use std::str::FromStr;
 
 use chrono::DateTime;
 use sea_orm::prelude::{DateTimeUtc, DateTimeWithTimeZone, Decimal};
+use sea_orm::DatabaseTransaction;
 use sea_orm::{
     sea_query::OnConflict, ColumnTrait, DatabaseConnection, DbErr, EntityTrait, QueryFilter, Set,
     TransactionTrait,
@@ -131,6 +132,15 @@ pub async fn create_pallet_listing(
                 .do_nothing()
                 .to_owned(),
         )
+        .exec(db)
+        .await?;
+
+    Ok(())
+}
+
+pub async fn delete_listing_if_exist(db: &DatabaseTransaction, nft_id: i32) -> Result<(), DbErr> {
+    ListingNft::delete_many()
+        .filter(listing_nft::Column::NftId.eq(nft_id))
         .exec(db)
         .await?;
 

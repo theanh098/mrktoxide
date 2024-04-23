@@ -104,17 +104,21 @@ impl CosmosClient {
         self.query_contract(PALLET_CONTRACT_ADDRESS, msg).await
     }
 
-    pub async fn get_tx_with_header(
+    pub async fn get_tx(&self, tx_hash: &str) -> Result<tx::Response, CosmosClientError> {
+        let tx_hash = Hash::from_bytes(Algorithm::Sha256, tx_hash.as_bytes())?;
+        let tx = self.as_http().tx(tx_hash.to_owned(), false).await?;
+
+        Ok(tx)
+    }
+
+    pub async fn get_tx_header(
         &self,
         tx_hash: &str,
-    ) -> Result<(tx::Response, header_by_hash::Response), CosmosClientError> {
+    ) -> Result<header_by_hash::Response, CosmosClientError> {
         let tx_hash = Hash::from_bytes(Algorithm::Sha256, tx_hash.as_bytes())?;
-
-        let res = self.as_http().tx(tx_hash.to_owned(), false).await?;
-
         let header = self.as_http().header_by_hash(tx_hash).await?;
 
-        Ok((res, header))
+        Ok(header)
     }
 
     pub async fn search_tx(

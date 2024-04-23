@@ -1,4 +1,6 @@
-use crate::{find_attribute, shared::create_nft_or_update_owner, Attribute, Event, Transaction};
+use crate::{
+    find_attribute, shared::create_nft_or_update_owner_or_just_find, Attribute, Event, Transaction,
+};
 use anyhow::Ok;
 use chrono::Utc;
 use database::{
@@ -40,7 +42,8 @@ async fn hanlde_transfer(
     let token_id = find_attribute(event, "token_id")?;
     let recipient = find_attribute(event, "recipient")?;
 
-    create_nft_or_update_owner(db, client, token_address, token_id, Some(recipient)).await?;
+    create_nft_or_update_owner_or_just_find(db, client, token_address, token_id, Some(recipient))
+        .await?;
     println!("done handle transfer");
     Ok(())
 }
@@ -54,7 +57,8 @@ async fn hanlde_send(
     let token_id = find_attribute(event, "token_id")?;
     let recipient = find_attribute(event, "recipient")?;
 
-    create_nft_or_update_owner(db, client, token_address, token_id, Some(recipient)).await?;
+    create_nft_or_update_owner_or_just_find(db, client, token_address, token_id, Some(recipient))
+        .await?;
     println!("done handle send");
     Ok(())
 }
@@ -68,7 +72,8 @@ async fn hanlde_mint(
     let token_id = find_attribute(event, "token_id")?;
     let owner = find_attribute(event, "owner")?;
 
-    create_nft_or_update_owner(db, client, token_address, token_id, Some(owner)).await?;
+    create_nft_or_update_owner_or_just_find(db, client, token_address, token_id, Some(owner))
+        .await?;
     println!("done handle mint");
 
     Ok(())

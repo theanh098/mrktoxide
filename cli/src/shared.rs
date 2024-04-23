@@ -48,7 +48,8 @@ pub async fn create_collection_if_not_exist(
     Ok(())
 }
 
-pub async fn create_nft_or_update_owner(
+// only update owner from cw721 stream
+pub async fn create_nft_or_update_owner_or_just_find(
     db: &DatabaseConnection,
     client: &CosmosClient,
     token_address: String,
@@ -95,15 +96,14 @@ pub async fn create_nft_or_update_owner(
 }
 
 pub async fn create_activity_transaction_and_point_on_sale(
-    db: &DatabaseConnection,
+    db: &DatabaseTransaction,
     params: CreateActivityTransactionAndPointOnSaleParams,
-) -> anyhow::Result<()> {
-    let tx = db.begin().await?;
+) -> anyhow::Result<&DatabaseTransaction> {
     let price = Decimal::from_str(&params.price)?;
     let point = i32::from_str(&params.price).map(|p| p / 1_000_000)?;
 
     NftActivityRepository::create(
-        &tx,
+        &db,
         CreateNftActivityParams {
             buyer_address: Some(params.buyer.to_owned()),
             seller_address: Some(params.seller.to_owned()),
@@ -120,7 +120,7 @@ pub async fn create_activity_transaction_and_point_on_sale(
     .await?;
 
     TransactionRepository::create(
-        &tx,
+        &db,
         CreateTransactionParams {
             buyer_address: params.buyer.to_owned(),
             seller_address: params.seller.to_owned(),
@@ -134,7 +134,7 @@ pub async fn create_activity_transaction_and_point_on_sale(
     .await?;
 
     UserPointRepository::create(
-        &tx,
+        &db,
         CreateUserPointParams {
             date: params.date,
             kind: LoyaltyPointKind::Buy,
@@ -145,7 +145,7 @@ pub async fn create_activity_transaction_and_point_on_sale(
     .await?;
 
     UserPointRepository::create(
-        &tx,
+        &db,
         CreateUserPointParams {
             date: params.date,
             kind: LoyaltyPointKind::Sell,
@@ -155,9 +155,7 @@ pub async fn create_activity_transaction_and_point_on_sale(
     )
     .await?;
 
-    tx.commit().await?;
-
-    Ok(())
+    Ok(db)
 }
 
 pub struct CreateActivityTransactionAndPointOnSaleParams {
