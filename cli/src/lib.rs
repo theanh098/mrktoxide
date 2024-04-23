@@ -7,7 +7,7 @@ pub mod shared;
 
 use anyhow::{anyhow, bail};
 use base64::{prelude::BASE64_STANDARD, Engine};
-use database::DatabaseConnection;
+use database::{query, DatabaseConnection};
 use futures_util::{SinkExt, StreamExt};
 use serde_json::Value;
 use service::CosmosClient;
@@ -68,6 +68,9 @@ where
                     .and_then(<Transaction as FromJsonValue>::try_from_value)?;
 
                 tx_handler(db, cosmos_client, tx_result).await
+            } else {
+                // we skip first message, so perfect to log message that is working well
+                println!("listening stream")
             }
         }
     }

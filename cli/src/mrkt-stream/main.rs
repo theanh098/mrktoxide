@@ -13,16 +13,11 @@ async fn main() {
     let db_url = std::env::var("DATABASE_URL").expect("db_url must be set");
     let cosmos_client = CosmosClient::from(tendermint_rpc::HttpClient::new(RPC_URL).unwrap());
 
-    let query = Query::from(EventType::Tx).and_eq(
-        "message.sender",
-        "sei1nurfe690mer9dmy8pp7resdsfx3pya7h9qw39l",
-    );
-
-    dbg!(&query.to_string());
+    let query = Query::eq("tx.height", "71718504");
 
     let res = cosmos_client.search_tx(query, 1).await.unwrap();
 
-    dbg!(res);
+    println!("total tx {}", res.total_count)
 
     // let mut opt = ConnectOptions::new(db_url);
     // opt.sqlx_logging(false);
