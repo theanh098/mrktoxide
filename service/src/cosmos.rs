@@ -57,7 +57,7 @@ impl CosmosClient {
         self.query_contract(address, msg).await
     }
 
-    fn inner(&self) -> &HttpClient {
+    pub fn as_http(&self) -> &HttpClient {
         &self.0
     }
 
@@ -110,9 +110,9 @@ impl CosmosClient {
     ) -> Result<(tx::Response, header_by_hash::Response), CosmosClientError> {
         let tx_hash = Hash::from_bytes(Algorithm::Sha256, tx_hash.as_bytes())?;
 
-        let res = self.inner().tx(tx_hash.to_owned(), false).await?;
+        let res = self.as_http().tx(tx_hash.to_owned(), false).await?;
 
-        let header = self.inner().header_by_hash(tx_hash).await?;
+        let header = self.as_http().header_by_hash(tx_hash).await?;
 
         Ok((res, header))
     }
@@ -123,7 +123,7 @@ impl CosmosClient {
         page: u32,
     ) -> Result<tx_search::Response, CosmosClientError> {
         let res = self
-            .inner()
+            .as_http()
             .tx_search(query, false, page, 100, Order::Ascending)
             .await?;
 
@@ -141,7 +141,7 @@ impl CosmosClient {
         };
 
         let res = self
-            .inner()
+            .as_http()
             .abci_query(
                 Some("/cosmwasm.wasm.v1.Query/SmartContractState".to_string()),
                 query.encode_to_vec(),
