@@ -1,7 +1,12 @@
 use prost::{DecodeError, Message};
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
 use serde_json::json;
-use tendermint_rpc::{Client, HttpClient};
+use tendermint::{hash::Algorithm, Hash};
+use tendermint_rpc::{
+    endpoint::{header_by_hash, tx, tx_search},
+    query::{self, EventType, Query},
+    Client, HttpClient, Order,
+};
 
 use crate::PALLET_CONTRACT_ADDRESS;
 
@@ -20,6 +25,9 @@ pub enum CosmosClientError {
 
     #[error("Decode Error")]
     ProstDecodeError(#[from] DecodeError),
+
+    #[error("Hash Error")]
+    TendermintHashError(#[from] tendermint::error::Error),
 }
 
 impl CosmosClient {
@@ -96,26 +104,28 @@ impl CosmosClient {
         self.query_contract(PALLET_CONTRACT_ADDRESS, msg).await
     }
 
-    pub async fn get_tx(&self, tx_hash: &str) -> Result<TxResponse, CosmosClientError> {
-        let query = GetTxRequest {
-            hash: tx_hash.to_string(),
-        };
+    pub async fn get_tx_with_header(
+        &self,
+        tx_hash: &str,
+    ) -> Result<(tx::Response, header_by_hash::Response), CosmosClientError> {
+        let tx_hash = Hash::from_bytes(Algorithm::Sha256, tx_hash.as_bytes())?;
 
+        let res = self.inner().tx(tx_hash.to_owned(), false).await?;
+
+        let header = self.inner().header_by_hash(tx_hash).await?;
+
+        Ok((res, header))
+    }
+
+    pub async fn search_tx(
+        &self,
+        query: Query,
+        page: u32,
+    ) -> Result<tx_search::Response, CosmosClientError> {
         let res = self
             .inner()
-            .abci_query(
-                Some("/cosmos.tx.v1beta1.Service/GetTx".to_string()),
-                query.encode_to_vec(),
-                None,
-                false,
-            )
+            .tx_search(query, false, page, 100, Order::Ascending)
             .await?;
-
-        if res.code.is_err() {
-            return Err(CosmosClientError::RpcError(res.log));
-        }
-
-        let res = TxResponse::decode(res.value.as_slice())?;
 
         Ok(res)
     }
@@ -204,38 +214,6 @@ pub struct Price {
 }
 
 #[derive(prost::Message)]
-pub struct TxResponse {
-    #[prost(int64, tag = "1")]
-    pub height: i64,
-
-    #[prost(string, tag = "2")]
-    pub txhash: prost::alloc::string::String,
-
-    #[prost(string, tag = "3")]
-    pub timestamp: prost::alloc::string::String,
-
-    #[prost(message, repeated, tag = "4")]
-    pub events: prost::alloc::vec::Vec<Event>,
-}
-#[derive(prost::Message)]
-pub struct Event {
-    #[prost(string, tag = "1")]
-    pub r#type: prost::alloc::string::String,
-
-    #[prost(message, repeated, tag = "2")]
-    pub attributes: prost::alloc::vec::Vec<EventAttribute>,
-}
-
-#[derive(prost::Message)]
-pub struct EventAttribute {
-    #[prost(bytes = "bytes", tag = "1")]
-    pub key: ::prost::bytes::Bytes,
-
-    #[prost(bytes = "bytes", tag = "2")]
-    pub value: ::prost::bytes::Bytes,
-}
-
-#[derive(prost::Message)]
 struct QueryContractRequest {
     #[prost(string, tag = "1")]
     address: prost::alloc::string::String,
@@ -248,10 +226,4 @@ struct QueryContractRequest {
 struct QueryRawContractResponse {
     #[prost(bytes = "vec", tag = "1")]
     pub data: prost::alloc::vec::Vec<u8>,
-}
-
-#[derive(prost::Message)]
-struct GetTxRequest {
-    #[prost(string, tag = "1")]
-    hash: String,
 }
