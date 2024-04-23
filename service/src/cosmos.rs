@@ -4,7 +4,7 @@ use serde_json::json;
 use tendermint::{hash::Algorithm, Hash};
 use tendermint_rpc::{
     endpoint::{header_by_hash, tx, tx_search},
-    query::{self, EventType, Query},
+    query::Query,
     Client, HttpClient, Order,
 };
 
@@ -91,8 +91,8 @@ impl CosmosClient {
 
     pub async fn get_pallet_listing(
         &self,
-        token_address: String,
-        token_id: String,
+        token_address: &str,
+        token_id: &str,
     ) -> Result<PalletListing, CosmosClientError> {
         let msg = json!({
             "nft": {
@@ -121,10 +121,11 @@ impl CosmosClient {
         &self,
         query: Query,
         page: u32,
+        per_page: u8,
     ) -> Result<tx_search::Response, CosmosClientError> {
         let res = self
             .as_http()
-            .tx_search(query, false, page, 100, Order::Ascending)
+            .tx_search(query, false, page, per_page, Order::Ascending)
             .await?;
 
         Ok(res)

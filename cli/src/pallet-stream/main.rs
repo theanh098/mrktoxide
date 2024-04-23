@@ -1,11 +1,7 @@
-use cli::{cw721::tx_handler, stream_handler, RPC_URL};
+use cli::{create_subcribe_message, cw721::tx_handler, stream_handler, RPC_URL};
 use database::{ConnectOptions, Database};
-use service::CosmosClient;
+use service::{CosmosClient, PALLET_CONTRACT_ADDRESS};
 use tendermint_rpc::query::{EventType, Query};
-use tokio_tungstenite::tungstenite::Message;
-
-static PALLET_CONTRACT_ADDRESS: &'static str =
-    "sei152u2u0lqc27428cuf8dx48k8saua74m6nql5kgvsu4rfeqm547rsnhy4y9";
 
 #[tokio::main]
 async fn main() {
@@ -18,22 +14,14 @@ async fn main() {
 
     let db = Database::connect(opt).await.unwrap();
 
-    let query = Query::from(EventType::Tx)
-        .and_eq("execute._contract_address", PALLET_CONTRACT_ADDRESS)
-        .to_string();
+    let query =
+        Query::from(EventType::Tx).and_eq("execute._contract_address", PALLET_CONTRACT_ADDRESS);
 
-    let msg = serde_json::json!({
-        "jsonrpc": "2.0",
-        "method": "subscribe",
-        "id": "0",
-        "params": {
-          "query": query
+    let msg = create_subcribe_message(query);
+
+    loop {
+        if let Err(error) = stream_handler(&db, &cosmos_client, &msg, tx_handler).await {
+            eprintln!("{}", error)
         }
-    });
-
-    let msg = Message::text(msg.to_string());
-
-    stream_handler(&db, &cosmos_client, &msg, tx_handler)
-        .await
-        .unwrap();
+    }
 }

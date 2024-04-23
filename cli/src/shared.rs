@@ -1,10 +1,16 @@
+use std::str::FromStr;
+
 use database::{
-    prelude::Decimal,
+    prelude::{DateTimeUtc, Decimal},
     repositories::{
         collection::{self as CollectionRespository, CreateCollectionParams},
-        nft::{self as NftRepository, AttributeParams, CreateNftParams},
+        nft::{self as NftRepository, CreateNftParams},
+        nft_activity::{self as NftActivityRepository, CreateNftActivityParams},
+        transaction::{self as TransactionRepository, CreateTransactionParams},
+        user_point::{self as UserPointRepository, CreateUserPointParams},
     },
-    DatabaseConnection,
+    sea_orm_active_enums::{LoyaltyPointKind, Marketplace, NftActivityKind},
+    DatabaseConnection, DatabaseTransaction, DbErr, TransactionTrait,
 };
 use service::{get_collection_metadata, get_nft_metadata, CosmosClient};
 
@@ -79,21 +85,90 @@ pub async fn create_nft_or_update_owner(
             description: metadata.description,
             image: metadata.image,
             name: metadata.name,
-            owner_address: None,
-            traits: metadata.attributes.map(|attributes| {
-                attributes
-                    .into_iter()
-                    .map(|attribute| AttributeParams {
-                        display_type: attribute.display_type.map(|v| v.to_string()),
-                        trait_type: attribute.trait_type,
-                        r#type: attribute.r#type,
-                        value: attribute.value.map(|v| v.to_string()),
-                    })
-                    .collect()
-            }),
+            owner_address: owner,
+            traits: metadata.attributes,
         },
     )
     .await?;
 
     Ok(nft_id)
+}
+
+pub async fn create_activity_transaction_and_point_on_sale(
+    db: &DatabaseConnection,
+    params: CreateActivityTransactionAndPointOnSaleParams,
+) -> anyhow::Result<()> {
+    let tx = db.begin().await?;
+    let price = Decimal::from_str(&params.price)?;
+    let point = i32::from_str(&params.price).map(|p| p / 1_000_000)?;
+
+    NftActivityRepository::create(
+        &tx,
+        CreateNftActivityParams {
+            buyer_address: Some(params.buyer.to_owned()),
+            seller_address: Some(params.seller.to_owned()),
+            created_date: params.date,
+            denom: params.denom,
+            event_kind: NftActivityKind::Sale,
+            marketplace: params.marketplace.to_owned(),
+            metadata: params.metadata,
+            nft_id: params.nft_id,
+            price,
+            tx_hash: params.tx_hash.to_owned(),
+        },
+    )
+    .await?;
+
+    TransactionRepository::create(
+        &tx,
+        CreateTransactionParams {
+            buyer_address: params.buyer.to_owned(),
+            seller_address: params.seller.to_owned(),
+            collection_address: params.collection_address,
+            created_date: params.date,
+            marketplace: params.marketplace,
+            tx_hash: params.tx_hash,
+            volume: price,
+        },
+    )
+    .await?;
+
+    UserPointRepository::create(
+        &tx,
+        CreateUserPointParams {
+            date: params.date,
+            kind: LoyaltyPointKind::Buy,
+            point,
+            wallet_address: params.buyer,
+        },
+    )
+    .await?;
+
+    UserPointRepository::create(
+        &tx,
+        CreateUserPointParams {
+            date: params.date,
+            kind: LoyaltyPointKind::Sell,
+            point,
+            wallet_address: params.seller,
+        },
+    )
+    .await?;
+
+    tx.commit().await?;
+
+    Ok(())
+}
+
+pub struct CreateActivityTransactionAndPointOnSaleParams {
+    pub buyer: String,
+    pub date: DateTimeUtc,
+    pub denom: String,
+    pub nft_id: i32,
+    pub price: String,
+    pub seller: String,
+    pub tx_hash: String,
+    pub collection_address: String,
+    pub metadata: serde_json::Value,
+    pub marketplace: Marketplace,
 }

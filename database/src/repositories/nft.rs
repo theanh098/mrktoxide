@@ -1,11 +1,16 @@
-use sea_orm::prelude::{DateTimeWithTimeZone, Decimal};
+use std::str::FromStr;
+
+use chrono::DateTime;
+use sea_orm::prelude::{DateTimeUtc, DateTimeWithTimeZone, Decimal};
 use sea_orm::{
     sea_query::OnConflict, ColumnTrait, DatabaseConnection, DbErr, EntityTrait, QueryFilter, Set,
     TransactionTrait,
 };
+use service::{NftAttribute, PalletListing};
 
-use crate::entities::{nft, nft_trait};
-use crate::{Nft, NftTrait};
+use crate::entities::{listing_nft, nft, nft_trait};
+use crate::sea_orm_active_enums::{Marketplace, SaleType};
+use crate::{ListingNft, Nft, NftTrait};
 
 pub async fn find_by_address_and_token_id(
     db: &DatabaseConnection,
@@ -65,7 +70,7 @@ pub async fn create(db: &DatabaseConnection, params: CreateNftParams) -> Result<
         .last_insert_id;
 
     let traits = params.traits.unwrap_or_default().into_iter().map(
-        |AttributeParams {
+        |NftAttribute {
              trait_type,
              r#type,
              value,
@@ -73,8 +78,10 @@ pub async fn create(db: &DatabaseConnection, params: CreateNftParams) -> Result<
          }| nft_trait::ActiveModel {
             nft_id: Set(nft_id),
             attribute: Set(trait_type.unwrap_or(r#type.unwrap_or("unknown".to_string()))),
-            display_type: Set(display_type),
-            value: Set(value.unwrap_or("unknown".to_string())),
+            display_type: Set(display_type.map(|v| v.to_string())),
+            value: Set(value
+                .map(|v| v.to_string())
+                .unwrap_or("unknown".to_string())),
             ..Default::default()
         },
     );
@@ -89,7 +96,46 @@ pub async fn create(db: &DatabaseConnection, params: CreateNftParams) -> Result<
     Ok(nft_id)
 }
 
-// pub async fn create_listing(db: &DatabaseConnection) {}
+pub async fn create_pallet_listing(
+    db: &DatabaseConnection,
+    params: CreatePalletListingParams,
+) -> Result<(), DbErr> {
+    let CreatePalletListingParams {
+        amount,
+        denom,
+        nft_id,
+        tx_hash,
+        created_date,
+        collection_address,
+        expiration_time,
+        seller,
+    } = params;
+
+    let listing = listing_nft::ActiveModel {
+        collection_address: Set(collection_address),
+        created_date: Set(created_date.into()),
+        denom: Set(denom),
+        expiration_time: Set(expiration_time),
+        market: Set(Marketplace::Pallet),
+        nft_id: Set(nft_id),
+        sale_type: Set(SaleType::Fixed),
+        seller_address: Set(seller),
+        price: Set(amount),
+        tx_hash: Set(tx_hash),
+        ..Default::default()
+    };
+
+    ListingNft::insert(listing)
+        .on_conflict(
+            OnConflict::column(listing_nft::Column::NftId)
+                .do_nothing()
+                .to_owned(),
+        )
+        .exec(db)
+        .await?;
+
+    Ok(())
+}
 
 pub struct CreateNftParams {
     pub token_address: String,
@@ -97,31 +143,18 @@ pub struct CreateNftParams {
     pub token_uri: String,
     pub name: Option<String>,
     pub image: Option<String>,
-    pub traits: Option<Vec<AttributeParams>>,
+    pub traits: Option<Vec<NftAttribute>>,
     pub description: Option<String>,
     pub owner_address: Option<String>,
 }
 
-pub struct AttributeParams {
-    pub trait_type: Option<String>,
-    pub r#type: Option<String>,
-    pub value: Option<String>,
-    pub display_type: Option<String>,
-}
-
 pub struct CreatePalletListingParams {
     pub nft_id: i32,
+    pub collection_address: String,
     pub tx_hash: String,
     pub denom: String,
     pub amount: Decimal,
-    pub pallet_listing: PalletListing,
+    pub created_date: DateTimeUtc,
+    pub seller: String,
+    pub expiration_time: Option<i32>,
 }
-
-pub struct PalletListing {
-    nft_address: String,
-    nft_token_id: String,
-    owner: String,
-    auction: Option<PalletAuction>,
-}
-
-pub struct PalletAuction {}

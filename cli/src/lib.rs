@@ -69,7 +69,7 @@ where
 
                 tx_handler(db, cosmos_client, tx_result).await
             } else {
-                // we skip first message, so perfect to log message that is working well
+                // we skip first message, so this time is perfect to tell that stream is working
                 println!("listening stream")
             }
         }
