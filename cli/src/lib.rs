@@ -78,8 +78,8 @@ where
     Ok(())
 }
 
-pub fn find_attribute(payload: &Event, key: &str) -> anyhow::Result<String> {
-    payload
+pub fn find_attribute(event: &Event, key: &str) -> anyhow::Result<String> {
+    event
         .attributes
         .iter()
         .find(|Attribute { key: k, .. }| k == key)

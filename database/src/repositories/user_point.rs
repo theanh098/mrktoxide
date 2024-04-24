@@ -3,7 +3,7 @@ use crate::{entities::user_loyalty_point, sea_orm_active_enums::LoyaltyPointKind
 use sea_orm::{prelude::DateTimeUtc, DbErr};
 use sea_orm::{DatabaseTransaction, EntityTrait, Set};
 
-pub async fn create(db: &DatabaseTransaction, params: CreateUserPointParams) -> Result<(), DbErr> {
+pub async fn create(tx: &DatabaseTransaction, params: CreateUserPointParams) -> Result<(), DbErr> {
     let user_point = user_loyalty_point::ActiveModel {
         date: Set(params.date.into()),
         kind: Set(params.kind),
@@ -12,7 +12,7 @@ pub async fn create(db: &DatabaseTransaction, params: CreateUserPointParams) -> 
         ..Default::default()
     };
 
-    UserLoyaltyPoint::insert(user_point).exec(db).await?;
+    UserLoyaltyPoint::insert(user_point).exec(tx).await?;
 
     Ok(())
 }

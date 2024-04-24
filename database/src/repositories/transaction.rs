@@ -4,9 +4,9 @@ use sea_orm::prelude::{DateTimeUtc, Decimal};
 use sea_orm::{DatabaseConnection, DatabaseTransaction, DbErr, EntityTrait, Set};
 
 pub async fn create(
-    db: &DatabaseTransaction,
+    tx: &DatabaseTransaction,
     params: CreateTransactionParams,
-) -> Result<&DatabaseTransaction, DbErr> {
+) -> Result<(), DbErr> {
     let transaction = transaction::ActiveModel {
         buyer_address: Set(params.buyer_address),
         collection_address: Set(params.collection_address),
@@ -18,9 +18,9 @@ pub async fn create(
         ..Default::default()
     };
 
-    Transaction::insert(transaction).exec(db).await?;
+    Transaction::insert(transaction).exec(tx).await?;
 
-    Ok(db)
+    Ok(())
 }
 
 pub struct CreateTransactionParams {

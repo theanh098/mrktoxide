@@ -1,44 +1,105 @@
 use crate::{
     find_attribute,
     shared::{self, CreateActivityTransactionAndPointOnSaleParams},
-    to_utf8, Event,
+    to_utf8, Attribute, Event, Transaction,
 };
-use chrono::Utc;
+use chrono::{DateTime, Utc};
 use database::{
     prelude::{DateTimeUtc, Decimal},
-    repositories::{self, nft::CreatePalletListingParams, transaction::CreateTransactionParams},
-    sea_orm_active_enums::Marketplace,
+    repositories::{
+        self, nft::CreatePalletListingParams, nft_activity::CreateNftActivityParams,
+        tracing::CreateStreamTxParams, transaction::CreateTransactionParams,
+    },
+    sea_orm_active_enums::{Marketplace, NftActivityKind, StreamContext},
     DatabaseConnection, TransactionTrait,
 };
 use service::{CosmosClient, PalletListing};
+use std::str::FromStr;
 use tendermint_rpc::endpoint::tx;
+
+static CREATE_AUCTION_ACTION: &'static str = "wasm-create_auction";
+static BUY_NOW_AUCTION: &'static str = "wasm-buy_now";
+static CANCEL_AUCTION: &'static str = "wasm-cancel_auction";
+
+pub async fn tx_handler(db: &DatabaseConnection, client: &CosmosClient, tx: Transaction) {
+    let Transaction { tx_hash, events } = tx;
+
+    let events = retrieve_pallet_events(events);
+
+    for event in events {
+        let action = &event.r#type;
+
+        let result = if action == CREATE_AUCTION_ACTION {
+            handle_create_auction(db, client, &event, &tx_hash).await
+        } else if action == BUY_NOW_AUCTION {
+            handle_buy_now(db, client, &event, &tx_hash).await
+        } else if action == CANCEL_AUCTION {
+            handle_cancel_auction(db, client, &event, &tx_hash).await
+        } else {
+            println!("unexpected action {} event {:#?}", action, event);
+            Ok(())
+        };
+
+        if let Err(error) = result {
+            repositories::tracing::create_stream_tx(
+                db,
+                CreateStreamTxParams {
+                    action: action.to_owned(),
+                    context: StreamContext::Pallet,
+                    date: Utc::now().into(),
+                    event: serde_json::json!(event),
+                    is_failure: true,
+                    tx_hash: tx_hash.to_owned(),
+                    message: Some(error.to_string()),
+                },
+            )
+            .await
+            .unwrap_or_else(|e| eprintln!("unexpected error when create tracing tx {}", e));
+        } else {
+            repositories::tracing::create_stream_tx(
+                db,
+                CreateStreamTxParams {
+                    action: action.to_owned(),
+                    context: StreamContext::Pallet,
+                    date: Utc::now().into(),
+                    event: serde_json::json!(event),
+                    is_failure: false,
+                    tx_hash: tx_hash.to_owned(),
+                    message: None,
+                },
+            )
+            .await
+            .unwrap_or_else(|e| eprintln!("unexpected error when create tracing tx {}", e));
+        }
+    }
+}
 
 async fn handle_create_auction(
     db: &DatabaseConnection,
     client: &CosmosClient,
     event: &Event,
-    tx_hash: String,
+    tx_hash: &String,
 ) -> anyhow::Result<()> {
     let token_address = find_attribute(event, "collection_address")?;
     let token_id = find_attribute(event, "token_id")?;
 
-    let pallet_listing = client.get_pallet_listing(&token_address, &token_id).await?;
-
-    let PalletListing {
-        auction,
-        token_id,
-        owner,
-        ..
-    } = pallet_listing;
+    dbg!(&token_address);
+    dbg!(&token_id);
 
     let nft_id = shared::create_nft_or_update_owner_or_just_find(
         db,
         client,
         token_address.to_owned(),
-        token_id,
+        token_id.to_owned(),
         None,
     )
     .await?;
+
+    dbg!(&nft_id);
+
+    let pallet_listing = client.get_pallet_listing(&token_address, &token_id).await?;
+
+    let PalletListing { auction, owner, .. } = pallet_listing;
 
     let Some(auction) = auction else {
         return Ok(());
@@ -49,43 +110,64 @@ async fn handle_create_auction(
     ))?;
 
     let amount = Decimal::from_str(&price.amount)?;
+
     let created_date = DateTime::from_timestamp(auction.created_at as i64, 0).ok_or(
         anyhow::anyhow!("unexpected error can not parse pallet listing created_date"),
     )?;
 
+    let tx = db.begin().await?;
+
+    dbg!("start tx");
+
     repositories::nft::create_pallet_listing(
-        &db,
+        &tx,
         CreatePalletListingParams {
             amount,
             created_date: created_date.into(),
             denom: "usei".to_string(),
             nft_id,
-            tx_hash,
+            tx_hash: tx_hash.to_owned(),
             collection_address: token_address,
             expiration_time: Some(auction.expiration_time as i32),
-            seller: owner,
+            seller: owner.to_owned(),
         },
     )
     .await?;
 
+    repositories::nft_activity::create(
+        &tx,
+        CreateNftActivityParams {
+            nft_id,
+            created_date: created_date.into(),
+            denom: "usei".to_string(),
+            event_kind: NftActivityKind::List,
+            marketplace: Marketplace::Pallet,
+            metadata: serde_json::json!({}),
+            price: amount,
+            seller_address: Some(owner),
+            tx_hash: tx_hash.to_owned(),
+            buyer_address: None,
+        },
+    )
+    .await?;
+
+    dbg!("end tx");
+
+    tx.commit().await?;
+
+    println!("done handle create auction {}", tx_hash);
+
     Ok(())
 }
+
 async fn handle_buy_now(
     db: &DatabaseConnection,
     client: &CosmosClient,
     event: &Event,
-    tx_hash: String,
+    tx_hash: &String,
 ) -> anyhow::Result<()> {
     let token_address = find_attribute(event, "collection_address")?;
     let token_id = find_attribute(event, "token_id")?;
-
-    let tx = client.get_tx(&tx_hash).await?;
-    let tx_head = client.get_tx_header(&tx_hash).await?;
-
-    let buyer = find_buyer_address_from_tx(&tx).ok_or(anyhow::anyhow!(
-        "unexpected error can not get buyer from tx {} in buy now event",
-        tx_hash
-    ))?;
 
     let nft_id = shared::create_nft_or_update_owner_or_just_find(
         db,
@@ -96,11 +178,24 @@ async fn handle_buy_now(
     )
     .await?;
 
+    let db_listing = repositories::nft::find_listing_by_nft_id(db, nft_id).await?;
+
+    let Some(db_listing) = db_listing else {
+        return Ok(());
+    };
+
+    let tx = client.get_tx(&tx_hash).await?;
+
+    let buyer = find_buyer_address_from_tx(&tx).ok_or(anyhow::anyhow!(
+        "unexpected error can not get buyer from tx {} in buy now event",
+        tx_hash
+    ))?;
+
     let db = db.begin().await?;
 
     repositories::nft::delete_listing_if_exist(&db, nft_id).await?;
 
-    let db = shared::create_activity_transaction_and_point_on_sale(
+    shared::create_activity_transaction_and_point_on_sale(
         &db,
         CreateActivityTransactionAndPointOnSaleParams {
             buyer,
@@ -110,220 +205,63 @@ async fn handle_buy_now(
             marketplace: Marketplace::Pallet,
             metadata: serde_json::json!({}),
             nft_id,
-            price: "a".to_string(),
-            seller: "sf".to_string(),
-            tx_hash,
+            price: db_listing.price.to_string(),
+            seller: db_listing.seller_address,
+            tx_hash: tx_hash.to_owned(),
         },
     )
     .await?;
 
-    //     await this.nftRepository.deleteListingIfExist({
-    //       tokenAddress,
-    //       tokenId,
-    //       marketplace: "pallet"
-    //     });
-
-    //     await this.nftRepository.createNftActivity({
-    //       eventKind: "sale",
-    //       denom: nft.Listing.denom,
-    //       sellerAddress: nft.Listing.seller_address,
-    //       buyerAddress,
-    //       metadata: {},
-    //       nft_id: nft.id,
-    //       price: Number(nft.Listing.price),
-    //       txHash,
-    //       createdDate: DateTime.now(),
-    //       marketplace: "pallet"
-    //     });
-
-    //     await this.transactionRepository.create({
-    //       buyerAddress: buyerAddress || "unknown",
-    //       sellerAddress: nft.Listing.seller_address,
-    //       collection_address: nft.token_address,
-    //       createdDate: DateTime.now(),
-    //       txHash,
-    //       volume: Number(nft.Listing.price),
-    //       marketplace: "pallet"
-    //     });
-
+    println!("done handle buynow auction {}", tx_hash);
     Ok(())
 }
 
-// async fn handle_cancel_auction(event: &Event, tx_hash: String) {}
+async fn handle_cancel_auction(
+    db: &DatabaseConnection,
+    client: &CosmosClient,
+    event: &Event,
+    tx_hash: &String,
+) -> anyhow::Result<()> {
+    let token_address = find_attribute(event, "nft_address")?;
+    let token_id = find_attribute(event, "nft_token_id")?;
 
-// import { Injectable } from "@nestjs/common";
-// import { DateTime } from "luxon";
+    let nft_id =
+        shared::create_nft_or_update_owner_or_just_find(db, client, token_address, token_id, None)
+            .await?;
 
-// import { NftRepository } from "@root/shared/repositories/nft.repository";
-// import { TransactionRepository } from "@root/shared/repositories/transaction.repository";
-// import { PalletContractQueryService } from "@root/shared/services/query-contract/pallet-contract-query.service";
+    let db_listing = repositories::nft::find_listing_by_nft_id(db, nft_id).await?;
 
-// import { CommonService } from "./common.service";
-// import { findAttributeByKey } from "./helper/shared";
-// import type { ContractEvent } from "./helper/type";
+    let Some(db_listing) = db_listing else {
+        return Ok(());
+    };
 
-// @Injectable()
-// export class PalletEventService {
-//   constructor(
-//     private palletContractQueryService: PalletContractQueryService,
-//     private commonService: CommonService,
-//     private nftRepository: NftRepository,
-//     private transactionRepository: TransactionRepository
-//   ) {}
+    let tx = db.begin().await?;
 
-//   public async handleCreateAuctionEvent(event: ContractEvent, txHash: string) {
-//     const tokenAddress = findAttributeByKey(event, "collection_address");
-//     const tokenId = findAttributeByKey(event, "token_id");
+    repositories::nft::delete_listing_if_exist(&tx, nft_id).await?;
 
-//     if (!tokenAddress || !tokenId) {
-//       throw new Error(`Missing event attribute in create_auction ${txHash}`);
-//     }
+    repositories::nft_activity::create(
+        &tx,
+        CreateNftActivityParams {
+            buyer_address: None,
+            created_date: Utc::now().into(),
+            denom: "usei".to_string(),
+            event_kind: NftActivityKind::Delist,
+            marketplace: Marketplace::Pallet,
+            metadata: serde_json::json!({}),
+            nft_id,
+            price: db_listing.price,
+            seller_address: Some(db_listing.seller_address),
+            tx_hash: tx_hash.to_owned(),
+        },
+    )
+    .await?;
 
-//     const palletListing = await this.palletContractQueryService.getListing({
-//       tokenAddress,
-//       tokenId
-//     });
+    tx.commit().await?;
 
-//     if (!palletListing.auction) {
-//       return;
-//     }
+    println!("done handle cancel auction {}", tx_hash);
 
-//     const { amount, denom } = palletListing.auction.prices?.[0] || {};
-
-//     if (!amount || !denom) {
-//       throw new Error(`Missing amount or denom from Pallet listing: ${txHash}`);
-//     }
-
-//     const nft_id = await this.commonService.createNftIfNotExist(
-//       tokenAddress,
-//       tokenId
-//     );
-
-//     await this.nftRepository.createPalletNftListing({
-//       nft_id,
-//       txHash,
-//       palletListingResponse: palletListing,
-//       amount: Number(amount),
-//       denom
-//     });
-
-//     await this.nftRepository.createNftActivity({
-//       eventKind: "list",
-//       denom,
-//       sellerAddress: palletListing.owner,
-//       metadata: {},
-//       nft_id,
-//       price: Number(amount),
-//       txHash,
-//       createdDate: DateTime.fromSeconds(palletListing.auction.created_at),
-//       marketplace: "pallet"
-//     });
-
-//     console.log(
-//       `Done handle create_auction at ${DateTime.now().toUTC()}: ${txHash}`
-//     );
-//   }
-
-//   public async handleCancelAuction(event: ContractEvent, txHash: string) {
-//     const tokenAddress = findAttributeByKey(event, "collection_address");
-//     const tokenId = findAttributeByKey(event, "token_id");
-
-//     if (!tokenAddress || !tokenId) {
-//       throw new Error(`Missing event attribute in cancel_auction ${txHash}`);
-//     }
-
-//     const nft = await this.nftRepository.findByAddressAndTokenId({
-//       tokenAddress,
-//       tokenId,
-//       withListing: true
-//     });
-
-//     if (!nft || !nft.Listing) {
-//       return;
-//     }
-
-//     await this.nftRepository.deleteListingIfExist({
-//       tokenAddress,
-//       tokenId,
-//       marketplace: "pallet"
-//     });
-
-//     await this.nftRepository.createNftActivity({
-//       eventKind: "delist",
-//       denom: nft.Listing.denom,
-//       sellerAddress: nft.Listing.seller_address,
-//       metadata: {},
-//       nft_id: nft.id,
-//       price: Number(nft.Listing.price),
-//       txHash,
-//       createdDate: DateTime.now(),
-//       marketplace: "pallet"
-//     });
-
-//     console.log(
-//       `Done handle cancel_auction at ${DateTime.now().toUTC()}: ${txHash}`
-//     );
-//   }
-
-//   public async handleBuyNow(event: ContractEvent, txHash: string) {
-//     const tokenAddress = findAttributeByKey(event, "collection_address");
-//     const tokenId = findAttributeByKey(event, "token_id");
-
-//     if (!tokenAddress || !tokenId) {
-//       throw new Error(`Missing event attribute in cancel_auction ${txHash}`);
-//     }
-
-//     const nft = await this.nftRepository.findByAddressAndTokenId({
-//       tokenAddress,
-//       tokenId,
-//       withListing: true
-//     });
-
-//     if (!nft || !nft.Listing) {
-//       return;
-//     }
-
-//     const tx = await this.palletContractQueryService.getTx(txHash);
-
-//     const buyerAddress = tx?.events
-//       .find(
-//         e =>
-//           e.type === "wasm" && !!e.attributes.find(a => a.key === "recipient")
-//       )
-//       ?.attributes.find(a => a.key === "recipient")?.value;
-
-//     await this.nftRepository.deleteListingIfExist({
-//       tokenAddress,
-//       tokenId,
-//       marketplace: "pallet"
-//     });
-
-//     await this.nftRepository.createNftActivity({
-//       eventKind: "sale",
-//       denom: nft.Listing.denom,
-//       sellerAddress: nft.Listing.seller_address,
-//       buyerAddress,
-//       metadata: {},
-//       nft_id: nft.id,
-//       price: Number(nft.Listing.price),
-//       txHash,
-//       createdDate: DateTime.now(),
-//       marketplace: "pallet"
-//     });
-
-//     await this.transactionRepository.create({
-//       buyerAddress: buyerAddress || "unknown",
-//       sellerAddress: nft.Listing.seller_address,
-//       collection_address: nft.token_address,
-//       createdDate: DateTime.now(),
-//       txHash,
-//       volume: Number(nft.Listing.price),
-//       marketplace: "pallet"
-//     });
-
-//     console.log(`Done handle buy_now at ${DateTime.now().toUTC()}: ${txHash}`);
-//   }
-// }
+    Ok(())
+}
 
 fn find_buyer_address_from_tx(tx: &tx::Response) -> Option<String> {
     tx.tx_result
@@ -339,4 +277,13 @@ fn find_buyer_address_from_tx(tx: &tx::Response) -> Option<String> {
             }
         })
         .map(|attribute| attribute.value.to_owned())
+}
+
+fn retrieve_pallet_events(events: Vec<Event>) -> Vec<Event> {
+    events
+        .into_iter()
+        .filter(|Event { r#type, .. }| {
+            r#type == BUY_NOW_AUCTION || r#type == CANCEL_AUCTION || r#type == CREATE_AUCTION_ACTION
+        })
+        .collect()
 }

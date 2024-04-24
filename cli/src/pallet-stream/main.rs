@@ -1,4 +1,4 @@
-use cli::{create_subcribe_message, cw721::tx_handler, stream_handler, RPC_URL};
+use cli::{create_subcribe_message, pallet::tx_handler, stream_handler, RPC_URL};
 use database::{ConnectOptions, Database};
 use service::{CosmosClient, PALLET_CONTRACT_ADDRESS};
 use tendermint_rpc::query::{EventType, Query};

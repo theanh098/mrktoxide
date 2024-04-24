@@ -14,6 +14,67 @@ static MINT_ACTION: &'static str = "mint";
 static TRANSFER_ACTION: &'static str = "transfer_nft";
 static SEND_ACTION: &'static str = "send_nft";
 
+pub async fn tx_handler(db: &DatabaseConnection, client: &CosmosClient, tx: Transaction) {
+    let Transaction { tx_hash, events } = tx;
+
+    let events = events
+        .into_iter()
+        .filter(is_cw721_event)
+        .collect::<Vec<Event>>();
+
+    for event in events {
+        let action = event
+            .attributes
+            .iter()
+            .find(|Attribute { key, .. }| key == "action")
+            .map(|attribute| attribute.value.to_owned())
+            .unwrap_or_default();
+
+        let result = if action == MINT_ACTION {
+            hanlde_mint(db, client, &event).await
+        } else if action == TRANSFER_ACTION {
+            hanlde_transfer(db, client, &event).await
+        } else if action == SEND_ACTION {
+            hanlde_send(db, client, &event).await
+        } else {
+            println!("unexpected action {} event {:#?}", action, event);
+            Ok(())
+        };
+
+        if let Err(error) = result {
+            TracingRepository::create_stream_tx(
+                db,
+                CreateStreamTxParams {
+                    action,
+                    context: StreamContext::Cwr721,
+                    date: Utc::now().into(),
+                    event: serde_json::json!(event),
+                    is_failure: true,
+                    tx_hash: tx_hash.to_owned(),
+                    message: Some(error.to_string()),
+                },
+            )
+            .await
+            .unwrap_or_else(|e| eprintln!("unexpected error when create tracing tx {}", e));
+        } else {
+            TracingRepository::create_stream_tx(
+                db,
+                CreateStreamTxParams {
+                    action,
+                    context: StreamContext::Cwr721,
+                    date: Utc::now().into(),
+                    event: serde_json::json!(event),
+                    is_failure: false,
+                    tx_hash: tx_hash.to_owned(),
+                    message: None,
+                },
+            )
+            .await
+            .unwrap_or_else(|e| eprintln!("unexpected error when create tracing tx {}", e));
+        }
+    }
+}
+
 fn is_cw721_action_attribute(attribue: &Attribute) -> bool {
     let Attribute { key, value } = attribue;
 
@@ -77,65 +138,4 @@ async fn hanlde_mint(
     println!("done handle mint");
 
     Ok(())
-}
-
-pub async fn tx_handler(db: &DatabaseConnection, client: &CosmosClient, tx: Transaction) {
-    let Transaction { tx_hash, events } = tx;
-
-    let events = events
-        .into_iter()
-        .filter(is_cw721_event)
-        .collect::<Vec<Event>>();
-
-    for event in events {
-        let action = event
-            .attributes
-            .iter()
-            .find(|Attribute { key, .. }| key == "action")
-            .map(|attribute| attribute.value.to_owned())
-            .unwrap_or_default();
-
-        let result = if action == MINT_ACTION {
-            hanlde_mint(db, client, &event).await
-        } else if action == TRANSFER_ACTION {
-            hanlde_transfer(db, client, &event).await
-        } else if action == SEND_ACTION {
-            hanlde_send(db, client, &event).await
-        } else {
-            println!("unexpected action {} event {:#?}", action, event);
-            Ok(())
-        };
-
-        if let Err(error) = result {
-            TracingRepository::create_stream_tx(
-                db,
-                CreateStreamTxParams {
-                    action,
-                    context: StreamContext::Cwr721,
-                    date: Utc::now().into(),
-                    event: serde_json::json!(event),
-                    is_failure: true,
-                    tx_hash: tx_hash.to_owned(),
-                    message: Some(error.to_string()),
-                },
-            )
-            .await
-            .unwrap_or_else(|e| eprintln!("unexpected error when create tracing tx {}", e));
-        } else {
-            TracingRepository::create_stream_tx(
-                db,
-                CreateStreamTxParams {
-                    action,
-                    context: StreamContext::Cwr721,
-                    date: Utc::now().into(),
-                    event: serde_json::json!(event),
-                    is_failure: false,
-                    tx_hash: tx_hash.to_owned(),
-                    message: None,
-                },
-            )
-            .await
-            .unwrap_or_else(|e| eprintln!("unexpected error when create tracing tx {}", e));
-        }
-    }
 }

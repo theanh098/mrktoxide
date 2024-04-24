@@ -9,7 +9,7 @@ use sea_orm::{
 };
 
 pub async fn create(
-    db: &DatabaseTransaction,
+    tx: &DatabaseTransaction,
     params: CreateNftActivityParams,
 ) -> Result<(), DbErr> {
     let activity = nft_activity::ActiveModel {
@@ -26,7 +26,7 @@ pub async fn create(
         ..Default::default()
     };
 
-    NftActivity::insert(activity).exec(db).await?;
+    NftActivity::insert(activity).exec(tx).await?;
 
     Ok(())
 }

@@ -25,6 +25,16 @@ pub async fn find_by_address_and_token_id(
         .await
 }
 
+pub async fn find_listing_by_nft_id(
+    db: &DatabaseConnection,
+    nft_id: i32,
+) -> Result<Option<listing_nft::Model>, DbErr> {
+    ListingNft::find()
+        .filter(listing_nft::Column::NftId.eq(nft_id))
+        .one(db)
+        .await
+}
+
 pub async fn update_owner(
     db: &DatabaseConnection,
     token_address: &str,
@@ -98,7 +108,7 @@ pub async fn create(db: &DatabaseConnection, params: CreateNftParams) -> Result<
 }
 
 pub async fn create_pallet_listing(
-    db: &DatabaseConnection,
+    tx: &DatabaseTransaction,
     params: CreatePalletListingParams,
 ) -> Result<(), DbErr> {
     let CreatePalletListingParams {
@@ -132,16 +142,16 @@ pub async fn create_pallet_listing(
                 .do_nothing()
                 .to_owned(),
         )
-        .exec(db)
+        .exec(tx)
         .await?;
 
     Ok(())
 }
 
-pub async fn delete_listing_if_exist(db: &DatabaseTransaction, nft_id: i32) -> Result<(), DbErr> {
+pub async fn delete_listing_if_exist(tx: &DatabaseTransaction, nft_id: i32) -> Result<(), DbErr> {
     ListingNft::delete_many()
         .filter(listing_nft::Column::NftId.eq(nft_id))
-        .exec(db)
+        .exec(tx)
         .await?;
 
     Ok(())
