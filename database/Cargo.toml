@@ -10,6 +10,7 @@ serde = { version = "*", features = ["derive"] }
 service = { path = "../service" }
 serde_json = "*"
 chrono = "*"
+enumscribe= "*"
 
 [dependencies.sea-orm]
 version = "*"

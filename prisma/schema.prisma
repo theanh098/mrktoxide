@@ -348,6 +348,8 @@ enum LoyaltyPointKind {
   buy
   bid
   xp
+
+  @@map("loyalty_point_kind")
 }
 
 enum SaleType {
@@ -369,4 +371,6 @@ enum StreamContext {
 enum Marketplace {
   mrkt
   pallet
+
+  @@map("marketplace")
 }

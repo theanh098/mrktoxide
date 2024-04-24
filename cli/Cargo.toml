@@ -16,6 +16,7 @@ chrono = "*"
 dotenv = "*"
 tokio-tungstenite = { version = "*", features = ["native-tls"] }
 serde_json = "*"
+enumscribe= "*"
 serde = { version = "*", features = ["derive"] }
 database = { path = "../database" }
 service = { path = "../service" }

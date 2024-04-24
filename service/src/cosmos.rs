@@ -197,8 +197,6 @@ pub struct NftOwner {
 #[derive(Deserialize, Debug)]
 
 pub struct PalletListing {
-    pub nft_address: String,
-    pub token_id: String,
     pub owner: String,
     pub auction: Option<PalletAuction>,
 }

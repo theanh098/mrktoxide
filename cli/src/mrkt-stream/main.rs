@@ -1,15 +1,37 @@
-use cli::RPC_URL;
-use service::CosmosClient;
-use tendermint_rpc::query::Query;
+use database::{
+    repositories::{self, collection::CollectionStatSelectOption},
+    ConnectOptions, Database, Sort,
+};
 
 #[tokio::main]
 async fn main() {
     dotenv::dotenv().ok();
-    let cosmos_client = CosmosClient::from(tendermint_rpc::HttpClient::new(RPC_URL).unwrap());
+    let db_url = std::env::var("DATABASE_URL").expect("db_url must be set");
 
-    let query = Query::eq("tx.height", "71718504");
+    let mut opt = ConnectOptions::new(db_url);
+    opt.sqlx_logging(false);
 
-    let res = cosmos_client.search_tx(query, 1, 100).await.unwrap();
+    let db = Database::connect(opt).await.unwrap();
 
-    println!("total tx {}", res.total_count)
+    let colllections = repositories::collection::find_collections_with_stats(
+        &db,
+        [
+            CollectionStatSelectOption::Address,
+            CollectionStatSelectOption::Name,
+            CollectionStatSelectOption::Symbol,
+            CollectionStatSelectOption::Volume,
+            CollectionStatSelectOption::Socials,
+            CollectionStatSelectOption::Image,
+            CollectionStatSelectOption::VolumeOf24h,
+            CollectionStatSelectOption::VolumeOf30d,
+            CollectionStatSelectOption::Royalty,
+            CollectionStatSelectOption::Supply,
+        ],
+        (Some(1), Some(10)),
+        (CollectionStatSelectOption::Volume, Sort::Desc),
+    )
+    .await
+    .unwrap();
+
+    dbg!(colllections)
 }

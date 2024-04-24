@@ -1,10 +1,14 @@
+use enumscribe::ScribeStaticStr;
+use sea_orm::prelude::DateTimeWithTimeZone;
 use sea_orm::{
     prelude::Decimal, sea_query::OnConflict, DatabaseConnection, DbErr, EntityTrait, Set,
 };
+use sea_orm::{query, ConnectionTrait, DatabaseBackend, FromQueryResult, Statement};
+use serde::Serialize;
 use service::CollectionMetadata;
 
 use crate::entities::collection;
-use crate::Collection;
+use crate::{Collection, Sort};
 
 pub async fn find_by_address(
     db: &DatabaseConnection,
@@ -43,6 +47,40 @@ pub async fn create(db: &DatabaseConnection, params: CreateCollectionParams) -> 
     Ok(())
 }
 
+pub async fn find_collections_with_stats(
+    db: &DatabaseConnection,
+    cols: impl IntoIterator<Item = CollectionStatSelectOption>,
+    (page, limit): (Option<u8>, Option<u8>),
+    (col, sort): (CollectionStatSelectOption, Sort),
+) -> Result<(), DbErr> {
+    let cols = cols
+        .into_iter()
+        .map(|col| col.scribe())
+        .collect::<Vec<&str>>()
+        .join(",");
+
+    let limit = limit.unwrap_or(100);
+    let skip = (page.unwrap_or(1) - 1) * limit;
+    let col = col.scribe();
+    let sort = sort.scribe();
+
+    let t = query::JsonValue::find_by_statement(Statement::from_sql_and_values(
+        DatabaseBackend::Postgres,
+        format!(
+            "SELECT {} FROM collection_view ORDER BY {} {} NULLS LAST OFFSET {} LIMIT {};",
+            cols, col, sort, skip, limit
+        ),
+        [],
+    ))
+    .into_model::<CollectionWithStat>()
+    .all(db)
+    .await?;
+
+    dbg!(t);
+
+    Ok(())
+}
+
 pub struct CreateCollectionParams {
     pub address: String,
     pub name: String,
@@ -50,4 +88,124 @@ pub struct CreateCollectionParams {
     pub supply: i32,
     pub metadata: CollectionMetadata,
     pub royalty: Option<Decimal>,
+}
+
+#[derive(ScribeStaticStr)]
+pub enum CollectionStatSelectOption {
+    #[enumscribe(str = "address")]
+    Address,
+
+    #[enumscribe(str = "name")]
+    Name,
+
+    #[enumscribe(str = "symbol")]
+    Symbol,
+
+    #[enumscribe(str = "sales")]
+    Sales,
+
+    #[enumscribe(str = "volume")]
+    Volume,
+
+    #[enumscribe(str = "royalty")]
+    Royalty,
+
+    #[enumscribe(str = "image")]
+    Image,
+
+    #[enumscribe(str = "banner")]
+    Banner,
+
+    #[enumscribe(str = "description")]
+    Description,
+
+    #[enumscribe(str = "socials")]
+    Socials,
+
+    #[enumscribe(str = "supply")]
+    Supply,
+
+    #[enumscribe(str = "highest_bid")]
+    HighestBid,
+
+    #[enumscribe(str = "listed")]
+    Listed,
+
+    #[enumscribe(str = "minted_date")]
+    MintedDate,
+
+    #[enumscribe(str = "floor_price")]
+    FloorPrice,
+
+    #[enumscribe(str = "volume_of_1h")]
+    VolumeOf1h,
+
+    #[enumscribe(str = "volume_of_24h")]
+    VolumeOf24h,
+
+    #[enumscribe(str = "volume_of_7d")]
+    VolumeOf7d,
+
+    #[enumscribe(str = "volume_of_30d")]
+    VolumeOf30d,
+}
+
+#[derive(Serialize, FromQueryResult, Debug)]
+pub struct CollectionWithStat {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub address: Option<String>,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub name: Option<String>,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub symbol: Option<String>,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub supply: Option<i32>,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub royalty: Option<Decimal>,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub image: Option<String>,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub banner: Option<String>,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub description: Option<String>,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub socials: Option<serde_json::Value>,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub highest_bid: Option<Decimal>,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub listed: Option<u32>,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub sales: Option<u32>,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub minted_date: Option<DateTimeWithTimeZone>,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub volume: Option<Decimal>,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub floor_price: Option<Decimal>,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub volume_of_1h: Option<Decimal>,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub volume_of_24h: Option<Decimal>,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub volume_of_7d: Option<Decimal>,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub volume_of_30d: Option<Decimal>,
 }

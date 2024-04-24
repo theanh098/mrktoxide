@@ -55,6 +55,11 @@ pub async fn tx_handler(db: &DatabaseConnection, client: &CosmosClient, tx: Tran
             )
             .await
             .unwrap_or_else(|e| eprintln!("unexpected error when create tracing tx {}", e));
+
+            eprintln!(
+                "unexpected error when handle pallet event {} {} \n>>{}",
+                action, tx_hash, error
+            );
         } else {
             repositories::tracing::create_stream_tx(
                 db,
@@ -70,6 +75,8 @@ pub async fn tx_handler(db: &DatabaseConnection, client: &CosmosClient, tx: Tran
             )
             .await
             .unwrap_or_else(|e| eprintln!("unexpected error when create tracing tx {}", e));
+
+            println!("done handle pallet event {} {}", action, tx_hash);
         }
     }
 }
@@ -83,9 +90,6 @@ async fn handle_create_auction(
     let token_address = find_attribute(event, "collection_address")?;
     let token_id = find_attribute(event, "token_id")?;
 
-    dbg!(&token_address);
-    dbg!(&token_id);
-
     let nft_id = shared::create_nft_or_update_owner_or_just_find(
         db,
         client,
@@ -95,11 +99,9 @@ async fn handle_create_auction(
     )
     .await?;
 
-    dbg!(&nft_id);
-
     let pallet_listing = client.get_pallet_listing(&token_address, &token_id).await?;
 
-    let PalletListing { auction, owner, .. } = pallet_listing;
+    let PalletListing { auction, owner } = pallet_listing;
 
     let Some(auction) = auction else {
         return Ok(());
@@ -116,8 +118,6 @@ async fn handle_create_auction(
     )?;
 
     let tx = db.begin().await?;
-
-    dbg!("start tx");
 
     repositories::nft::create_pallet_listing(
         &tx,
@@ -151,11 +151,7 @@ async fn handle_create_auction(
     )
     .await?;
 
-    dbg!("end tx");
-
     tx.commit().await?;
-
-    println!("done handle create auction {}", tx_hash);
 
     Ok(())
 }
@@ -212,7 +208,6 @@ async fn handle_buy_now(
     )
     .await?;
 
-    println!("done handle buynow auction {}", tx_hash);
     Ok(())
 }
 
@@ -222,8 +217,8 @@ async fn handle_cancel_auction(
     event: &Event,
     tx_hash: &String,
 ) -> anyhow::Result<()> {
-    let token_address = find_attribute(event, "nft_address")?;
-    let token_id = find_attribute(event, "nft_token_id")?;
+    let token_address = find_attribute(event, "collection_address")?;
+    let token_id = find_attribute(event, "token_id")?;
 
     let nft_id =
         shared::create_nft_or_update_owner_or_just_find(db, client, token_address, token_id, None)
@@ -257,8 +252,6 @@ async fn handle_cancel_auction(
     .await?;
 
     tx.commit().await?;
-
-    println!("done handle cancel auction {}", tx_hash);
 
     Ok(())
 }

@@ -15,8 +15,8 @@ use std::future::Future;
 use tendermint_rpc::query::Query;
 use tokio_tungstenite::{connect_async, tungstenite::Message};
 
-pub static RPC_URL: &'static str = "https://rpc.sei-apis.com";
-static WSS_URL: &'static str = "wss://rpc.sei-apis.com/websocket";
+pub static RPC_URL: &'static str = "https://rpc.sei-apis.com?x-apikey=06cf555f";
+static WSS_URL: &'static str = "wss://rpc.sei-apis.com/websocket?x-apikey=06cf555f";
 static INGORE_MESSAGE: &'static str = "{\"jsonrpc\":\"2.0\",\"id\":\"0\",\"result\":{}}";
 
 pub trait FromJsonValue

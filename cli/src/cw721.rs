@@ -17,10 +17,7 @@ static SEND_ACTION: &'static str = "send_nft";
 pub async fn tx_handler(db: &DatabaseConnection, client: &CosmosClient, tx: Transaction) {
     let Transaction { tx_hash, events } = tx;
 
-    let events = events
-        .into_iter()
-        .filter(is_cw721_event)
-        .collect::<Vec<Event>>();
+    let events = retrieve_cw721_events(events);
 
     for event in events {
         let action = event
@@ -42,6 +39,11 @@ pub async fn tx_handler(db: &DatabaseConnection, client: &CosmosClient, tx: Tran
         };
 
         if let Err(error) = result {
+            eprintln!(
+                "unexpected error when handle cw721 event {} {} \n>>{}",
+                action, tx_hash, error
+            );
+
             TracingRepository::create_stream_tx(
                 db,
                 CreateStreamTxParams {
@@ -57,6 +59,8 @@ pub async fn tx_handler(db: &DatabaseConnection, client: &CosmosClient, tx: Tran
             .await
             .unwrap_or_else(|e| eprintln!("unexpected error when create tracing tx {}", e));
         } else {
+            println!("done handle cw721 event {} {}", action, tx_hash);
+
             TracingRepository::create_stream_tx(
                 db,
                 CreateStreamTxParams {
@@ -75,25 +79,6 @@ pub async fn tx_handler(db: &DatabaseConnection, client: &CosmosClient, tx: Tran
     }
 }
 
-fn is_cw721_action_attribute(attribue: &Attribute) -> bool {
-    let Attribute { key, value } = attribue;
-
-    if key != "action" {
-        false
-    } else {
-        value == MINT_ACTION || value == TRANSFER_ACTION || value == SEND_ACTION
-    }
-}
-
-fn is_cw721_event(event: &Event) -> bool {
-    event.r#type == "wasm"
-        && event
-            .attributes
-            .iter()
-            .find(|attribute| is_cw721_action_attribute(attribute))
-            .is_some()
-}
-
 async fn hanlde_transfer(
     db: &DatabaseConnection,
     client: &CosmosClient,
@@ -105,7 +90,7 @@ async fn hanlde_transfer(
 
     create_nft_or_update_owner_or_just_find(db, client, token_address, token_id, Some(recipient))
         .await?;
-    println!("done handle transfer");
+
     Ok(())
 }
 
@@ -120,7 +105,7 @@ async fn hanlde_send(
 
     create_nft_or_update_owner_or_just_find(db, client, token_address, token_id, Some(recipient))
         .await?;
-    println!("done handle send");
+
     Ok(())
 }
 
@@ -135,7 +120,29 @@ async fn hanlde_mint(
 
     create_nft_or_update_owner_or_just_find(db, client, token_address, token_id, Some(owner))
         .await?;
-    println!("done handle mint");
 
     Ok(())
+}
+
+fn retrieve_cw721_events(events: Vec<Event>) -> Vec<Event> {
+    fn is_cw721_action_attribute(attribue: &Attribute) -> bool {
+        let Attribute { key, value } = attribue;
+
+        if key != "action" {
+            false
+        } else {
+            value == MINT_ACTION || value == TRANSFER_ACTION || value == SEND_ACTION
+        }
+    }
+
+    fn is_cw721_event(event: &Event) -> bool {
+        event.r#type == "wasm"
+            && event
+                .attributes
+                .iter()
+                .find(|attribute| is_cw721_action_attribute(attribute))
+                .is_some()
+    }
+
+    events.into_iter().filter(is_cw721_event).collect()
 }
