@@ -1,10 +1,54 @@
-use axum::extract::Query;
-use database::{query, repositories::collection::CollectionStatSelectOption, Sort};
+use crate::{error::AppError, extractors::AppState};
+use axum::{
+    extract::{Query, State},
+    Json,
+};
+use database::{
+    query,
+    repositories::{
+        self,
+        collection::{CollectionStatSelectOption, CollectionWithStat},
+    },
+    Sort,
+};
 use serde::Deserialize;
-use server::empty_string_as_none;
+use server::{empty_string_as_none, PagedQuery, PaginatedReponse};
 
-pub async fn get_collections(query: Query<GetCollectionsQuery>) {
-    println!("query: {:#?}", query);
+pub async fn get_collections(
+    State(AppState { db, .. }): State<AppState>,
+    Query(query): Query<GetCollectionsQuery>,
+    Query(paged_query): Query<PagedQuery>,
+) -> Result<Json<PaginatedReponse<CollectionWithStat>>, AppError> {
+    use CollectionStatSelectOption::*;
+
+    let GetCollectionsQuery {
+        search,
+        sort_direction,
+        sort_by,
+    } = query;
+
+    let PagedQuery { page, take } = paged_query;
+
+    let sort_by = sort_by.map(|s| s.to_stat_field()).unwrap_or(Volume);
+
+    let cols = [
+        Address, Name, Image, Volume, FloorPrice, Sales, Listed, sort_by,
+    ];
+
+    let collections = repositories::collection::find_collections_with_stats(
+        &db,
+        cols,
+        search,
+        (Some(page), Some(take)),
+        (sort_by, sort_direction.unwrap_or_default()),
+    )
+    .await?;
+
+    Ok(Json(PaginatedReponse {
+        page,
+        total: 100,
+        data: collections,
+    }))
 }
 
 #[derive(Deserialize, Debug)]
@@ -13,6 +57,7 @@ pub struct GetCollectionsQuery {
     search: Option<String>,
 
     sort_direction: Option<Sort>,
+
     sort_by: Option<SortBy>,
 }
 

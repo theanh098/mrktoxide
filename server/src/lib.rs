@@ -1,14 +1,25 @@
-use serde::{de::IntoDeserializer, Deserialize};
+use serde::{Deserialize, Serialize};
 
-pub fn empty_string_as_none<'de, D, T>(de: D) -> Result<Option<T>, D::Error>
+pub fn empty_string_as_none<'r, D>(de: D) -> Result<Option<String>, D::Error>
 where
-    D: serde::Deserializer<'de>,
-    T: serde::Deserialize<'de>,
+    D: serde::Deserializer<'r>,
 {
-    let opt = Option::<String>::deserialize(de)?;
-    let opt = opt.as_ref().map(String::as_str);
-    match opt {
-        None | Some("") => Ok(None),
-        Some(s) => T::deserialize(s.into_deserializer()).map(Some),
-    }
+    let s = Option::<String>::deserialize(de)?;
+
+    let s = s.filter(|s| !s.is_empty());
+
+    Ok(s)
+}
+
+#[derive(Deserialize, Debug)]
+pub struct PagedQuery {
+    pub page: u32,
+    pub take: u16,
+}
+
+#[derive(Serialize, Debug)]
+pub struct PaginatedReponse<T> {
+    pub total: u32,
+    pub page: u32,
+    pub data: Vec<T>,
 }

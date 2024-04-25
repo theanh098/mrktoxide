@@ -14,8 +14,8 @@ pub struct Postgres(pub DatabaseConnection);
 
 #[derive(Clone)]
 pub struct AppState {
-    database_connection: DatabaseConnection,
-    redis_pool: deadpool_redis::Pool,
+    pub db: DatabaseConnection,
+    pub redis_pool: deadpool_redis::Pool,
 }
 
 #[async_trait]
@@ -50,7 +50,7 @@ where
 
 impl FromRef<AppState> for DatabaseConnection {
     fn from_ref(app_state: &AppState) -> DatabaseConnection {
-        app_state.database_connection.clone()
+        app_state.db.clone()
     }
 }
 
@@ -73,7 +73,7 @@ impl AppState {
             .unwrap();
 
         Self {
-            database_connection,
+            db: database_connection,
             redis_pool,
         }
     }

@@ -50,9 +50,10 @@ pub async fn create(db: &DatabaseConnection, params: CreateCollectionParams) -> 
 pub async fn find_collections_with_stats(
     db: &DatabaseConnection,
     cols: impl IntoIterator<Item = CollectionStatSelectOption>,
-    (page, limit): (Option<u8>, Option<u8>),
+    search: Option<String>,
+    (page, limit): (Option<u32>, Option<u16>),
     (col, sort): (CollectionStatSelectOption, Sort),
-) -> Result<(), DbErr> {
+) -> Result<Vec<CollectionWithStat>, DbErr> {
     let cols = cols
         .into_iter()
         .map(|col| col.scribe())
@@ -60,15 +61,21 @@ pub async fn find_collections_with_stats(
         .join(",");
 
     let limit = limit.unwrap_or(100);
-    let skip = (page.unwrap_or(1) - 1) * limit;
+    let skip = (page.unwrap_or(1) - 1) * limit as u32;
     let col = col.scribe();
     let sort = sort.scribe();
+    let search = search
+        .map(|s| format!("LOWER(name) LIKE '%{}%'", s.to_lowercase()))
+        .unwrap_or("1 = 1".to_owned());
 
-    let t = query::JsonValue::find_by_statement(Statement::from_sql_and_values(
+    let collections = query::JsonValue::find_by_statement(Statement::from_sql_and_values(
         DatabaseBackend::Postgres,
         format!(
-            "SELECT {} FROM collection_view ORDER BY {} {} NULLS LAST OFFSET {} LIMIT {};",
-            cols, col, sort, skip, limit
+            "SELECT {} FROM collection_view
+            WHERE {}
+            ORDER BY {} {} NULLS LAST 
+            OFFSET {} LIMIT {};",
+            cols, search, col, sort, skip, limit
         ),
         [],
     ))
@@ -76,9 +83,7 @@ pub async fn find_collections_with_stats(
     .all(db)
     .await?;
 
-    dbg!(t);
-
-    Ok(())
+    Ok(collections)
 }
 
 pub struct CreateCollectionParams {
@@ -90,7 +95,7 @@ pub struct CreateCollectionParams {
     pub royalty: Option<Decimal>,
 }
 
-#[derive(ScribeStaticStr)]
+#[derive(ScribeStaticStr, Clone, Copy)]
 pub enum CollectionStatSelectOption {
     #[enumscribe(str = "address")]
     Address,
@@ -183,10 +188,10 @@ pub struct CollectionWithStat {
     pub highest_bid: Option<Decimal>,
 
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub listed: Option<u32>,
+    pub listed: Option<i64>,
 
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub sales: Option<u32>,
+    pub sales: Option<i64>,
 
     #[serde(skip_serializing_if = "Option::is_none")]
     pub minted_date: Option<DateTimeWithTimeZone>,
